@@ -1,0 +1,2197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Oceano Cripto — Realidade Estendida</title>
+<style>
+  :root{ --glass: rgba(8,34,52,0.55); --stroke: rgba(150,220,255,0.28); --text: #d8f1ff; }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ height:100%; overflow:hidden; background:#02121d; font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  canvas{ display:block; width:100%; height:100%; cursor:grab; touch-action:none; }
+  canvas.dragging{ cursor:grabbing; }
+  .panel{ position:fixed; background:var(--glass); border:1px solid var(--stroke); border-radius:16px;
+    backdrop-filter:blur(14px) saturate(140%); -webkit-backdrop-filter:blur(14px) saturate(140%);
+    color:var(--text); box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08); user-select:none; }
+  #info{ top:16px; left:16px; padding:14px 18px; max-width:min(340px,66vw); }
+  #info h1{ font-size:15px; font-weight:650; letter-spacing:.3px; margin-bottom:7px; }
+  #info p{ font-size:12px; line-height:1.6; opacity:.72; }
+  #info kbd{ display:inline-block; padding:1px 5px; border-radius:5px; font-size:11px;
+    background:rgba(140,220,255,.14); border:1px solid rgba(140,220,255,.22); font-family:inherit; }
+  #hud{ position:fixed; top:16px; right:16px; padding:9px 14px; font-size:12px;
+    font-variant-numeric:tabular-nums; letter-spacing:.4px; opacity:.9; line-height:1.5; }
+  #hud span{ color:#8ee0ff; font-weight:600; }
+  #zoom-ui{ position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; align-items:center; gap:8px; padding:10px; border-radius:20px; }
+  .zbtn{ width:52px; height:52px; border-radius:14px; border:1px solid var(--stroke);
+    background:linear-gradient(180deg,rgba(40,110,150,.5),rgba(10,40,60,.5)); color:var(--text); font-size:24px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:transform .12s,background .2s,box-shadow .2s; }
+  .zbtn:hover{ background:linear-gradient(180deg,rgba(70,160,210,.65),rgba(15,60,90,.7)); box-shadow:0 0 18px rgba(80,190,255,.35); }
+  .zbtn:active{ transform:scale(.92); }
+  .zbtn.small{ width:52px; height:38px; font-size:17px; }
+  #zoomLabel{ font-size:11px; letter-spacing:.6px; opacity:.8; font-variant-numeric:tabular-nums; }
+
+  .sound-btn{
+    position:fixed; bottom:16px; left:16px;
+    display:flex; align-items:center; gap:10px;
+    padding:10px 16px; border-radius:14px;
+    cursor:pointer; font-size:13px; font-family:inherit;
+    color:var(--text); border:1px solid var(--stroke);
+    background:var(--glass); backdrop-filter:blur(14px) saturate(140%);
+    -webkit-backdrop-filter:blur(14px) saturate(140%);
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+    transition: all .25s ease; user-select:none;
+  }
+  .sound-btn:hover{
+    background:linear-gradient(180deg,rgba(70,160,210,.55),rgba(15,60,90,.7));
+    box-shadow:0 0 18px rgba(80,190,255,.3);
+  }
+  .sound-btn.on{
+    border-color:rgba(110,220,255,.55);
+    box-shadow:0 0 22px rgba(80,200,255,.35), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .sound-bars{ display:flex; gap:3px; align-items:flex-end; height:18px; }
+  .sound-bars span{ display:block; width:3px; height:4px; background:#8ee0ff; border-radius:2px; transition:height .2s; }
+  .sound-btn.on .sound-bars span:nth-child(1){ animation:sb .7s ease-in-out infinite; }
+  .sound-btn.on .sound-bars span:nth-child(2){ animation:sb .9s ease-in-out infinite .1s; }
+  .sound-btn.on .sound-bars span:nth-child(3){ animation:sb .6s ease-in-out infinite .2s; }
+  .sound-btn.on .sound-bars span:nth-child(4){ animation:sb 1s ease-in-out infinite .05s; }
+  @keyframes sb{ 0%,100%{ height:4px; } 50%{ height:18px; } }
+  .sound-label{ font-size:12px; letter-spacing:.3px; opacity:.9; }
+
+  #detail-panel {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.92);
+    width: min(440px, 92vw); max-height: 82vh; overflow-y: auto;
+    padding: 22px 24px 20px; border-radius: 22px;
+    background: rgba(6, 28, 44, 0.78);
+    border: 1px solid rgba(150, 220, 255, 0.38);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.1);
+    color: var(--text); z-index: 100;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #detail-panel.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+  #detail-panel .dp-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  #detail-panel .dp-logo { width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.3); flex-shrink: 0; object-fit: contain; }
+  #detail-panel .dp-title { flex: 1; min-width: 0; }
+  #detail-panel .dp-title h2 { font-size: 18px; font-weight: 700; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #detail-panel .dp-title .dp-symbol { font-size: 12px; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.6px; }
+  #detail-panel .dp-close { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--stroke); background: rgba(255,255,255,0.06); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+  #detail-panel .dp-close:hover { background: rgba(255,255,255,0.15); }
+  #detail-panel .dp-status { font-size: 10px; letter-spacing: 0.4px; opacity: 0.7; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  #detail-panel .dp-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #7dffb0; box-shadow: 0 0 8px rgba(125,255,176,0.6); animation: pulse 1.5s ease-in-out infinite; flex-shrink: 0; }
+  #detail-panel .dp-status .dot.stale { background: #ffcc66; box-shadow: 0 0 8px rgba(255,204,102,0.6); }
+  #detail-panel .dp-status .dot.error { background: #ff8a8a; box-shadow: 0 0 8px rgba(255,138,138,0.6); }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.4; } }
+  #detail-panel .dp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  #detail-panel .dp-item { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); }
+  #detail-panel .dp-item .dp-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; opacity: 0.55; margin-bottom: 4px; }
+  #detail-panel .dp-item .dp-value { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; word-break: break-word; }
+  #detail-panel .dp-value.up { color: #7dffb0; }
+  #detail-panel .dp-value.down { color: #ff8a8a; }
+  #detail-panel .dp-full { grid-column: span 2; }
+  #detail-panel .dp-back { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(110, 220, 255, 0.4); background: linear-gradient(180deg, rgba(40,130,180,0.5), rgba(10,50,80,0.6)); color: var(--text); font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; letter-spacing: 0.3px; }
+  #detail-panel .dp-back:hover { background: linear-gradient(180deg, rgba(70,170,220,0.65), rgba(15,70,110,0.75)); box-shadow: 0 0 22px rgba(80,190,255,0.3); }
+
+  #api-status { display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 10px; letter-spacing: 0.4px; opacity: 0.85; }
+  #api-status .dot { width: 6px; height: 6px; border-radius: 50%; background: #7dffb0; box-shadow: 0 0 8px rgba(125,255,176,0.6); }
+  #api-status .dot.warn { background: #ffcc66; box-shadow: 0 0 8px rgba(255,204,102,0.6); }
+  #api-status .dot.err { background: #ff8a8a; box-shadow: 0 0 8px rgba(255,138,138,0.6); }
+
+  @media (max-width:640px){
+    #info{ max-width:56vw; padding:10px 12px; } #info p{ font-size:11px; } #info h1{ font-size:13px; }
+    .zbtn{ width:46px; height:46px; } .zbtn.small{ height:34px; }
+    .sound-btn{ padding:9px 13px; }
+    .sound-label{ font-size:11px; }
+    #detail-panel { padding: 18px 18px 16px; }
+    #detail-panel .dp-grid { gap: 8px; }
+    #detail-panel .dp-item { padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info" class="panel">
+  <h1>🌊 Oceano Cripto — Realidade Estendida</h1>
+  <p>Arraste para navegar · Scroll ou botões para o zoom<br><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas para se mover · Clique em um animal</p>
+</div>
+
+<div id="hud" class="panel">
+  <div>X <span id="hx">0</span> · Y <span id="hy">0</span></div>
+  <div>👁 <span id="hvis">0</span> visíveis · 🐾 <span id="htot">0</span> total</div>
+  <div>🐙 <span id="hoct">0</span> polvos · 🐉 <span id="hlev">0</span> leviatãs</div>
+  <div>⚡ <span id="hstun">0</span> atordoados · 🏃 <span id="hflee">0</span> em fuga</div>
+  <div>🐋 <span id="hwhale">0</span> baleias · 🦈 <span id="hshark">0</span> tubarões em ataque</div>
+  <div>🔍 <span id="hzoom">100%</span></div>
+  <div id="api-status"><span class="dot" id="apiDot"></span><span id="apiText">API —</span></div>
+</div>
+
+<div id="zoom-ui" class="panel">
+  <button class="zbtn" id="zoomIn" aria-label="Aumentar zoom">+</button>
+  <div id="zoomLabel">100%</div>
+  <button class="zbtn" id="zoomOut" aria-label="Diminuir zoom">−</button>
+  <button class="zbtn small" id="resetZoom" aria-label="Redefinir zoom">⟲</button>
+</div>
+
+<button id="soundBtn" class="sound-btn" aria-label="Ligar som do oceano" title="Som do oceano">
+  <div class="sound-bars"><span></span><span></span><span></span><span></span></div>
+  <span class="sound-label">Som</span>
+</button>
+
+<div id="detail-panel">
+  <div class="dp-header">
+    <img class="dp-logo" id="dp-logo" alt="logo" src="" />
+    <div class="dp-title">
+      <h2 id="dp-name">—</h2>
+      <div class="dp-symbol" id="dp-symbol">—</div>
+    </div>
+    <button class="dp-close" id="dp-close" aria-label="Fechar">✕</button>
+  </div>
+  <div class="dp-status">
+    <span class="dot" id="dpDot"></span>
+    <span id="dpStatusText">Buscando dados em tempo real…</span>
+  </div>
+  <div class="dp-grid" id="dp-grid">
+    <div class="dp-item dp-full"><div class="dp-label">Preço atual</div><div class="dp-value" id="dp-price">—</div></div>
+    <div class="dp-item"><div class="dp-label">Capitalização de mercado</div><div class="dp-value" id="dp-mcap">—</div></div>
+    <div class="dp-item"><div class="dp-label">Volume 24h</div><div class="dp-value" id="dp-vol">—</div></div>
+    <div class="dp-item"><div class="dp-label">FDV (Fully Diluted)</div><div class="dp-value" id="dp-fdv">—</div></div>
+    <div class="dp-item"><div class="dp-label">Ranking</div><div class="dp-value" id="dp-rank">—</div></div>
+    <div class="dp-item"><div class="dp-label">Supply circulante</div><div class="dp-value" id="dp-circulating">—</div></div>
+    <div class="dp-item"><div class="dp-label">Supply total</div><div class="dp-value" id="dp-total-supply">—</div></div>
+    <div class="dp-item"><div class="dp-label">Supply máximo</div><div class="dp-value" id="dp-max-supply">—</div></div>
+    <div class="dp-item"><div class="dp-label">Variação 24h</div><div class="dp-value" id="dp-change-24h">—</div></div>
+    <div class="dp-item"><div class="dp-label">Variação 1h</div><div class="dp-value" id="dp-change-1h">—</div></div>
+    <div class="dp-item"><div class="dp-label">Máxima 24h</div><div class="dp-value" id="dp-high-24h">—</div></div>
+    <div class="dp-item"><div class="dp-label">Mínima 24h</div><div class="dp-value" id="dp-low-24h">—</div></div>
+  </div>
+  <button class="dp-back" id="dp-back">← Voltar ao oceano</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ============================================================
+  // CONFIGURAÇÃO DA API COINGECKO
+  // ============================================================
+  const CG_API_KEY = 'SUA_CHAVE_DEMO_AQUI';
+  const CG_BASE = 'https://api.coingecko.com/api/v3';
+  const HAS_KEY = CG_API_KEY && CG_API_KEY !== 'SUA_CHAVE_DEMO_AQUI';
+
+  const MARKET_REFRESH_MS = 5 * 60 * 1000;
+  const DETAIL_REFRESH_MS = 60 * 1000;
+  const CLICK_DEBOUNCE_MS = 250;
+
+  function cgHeaders(){
+    return HAS_KEY ? { 'x-cg-demo-api-key': CG_API_KEY } : {};
+  }
+
+  const apiHealth = { status: 'unknown', message: 'API —' };
+  function setApiHealth(status, message){
+    apiHealth.status = status;
+    apiHealth.message = message;
+    const dot = document.getElementById('apiDot');
+    const txt = document.getElementById('apiText');
+    dot.className = 'dot' + (status === 'ok' ? '' : status === 'warn' ? ' warn' : ' err');
+    const mode = HAS_KEY ? 'Demo' : 'keyless';
+    txt.textContent = `${message} (${mode})`;
+  }
+
+  let rateLimitedUntil = 0;
+  function isRateLimited(){ return Date.now() < rateLimitedUntil; }
+  function registerRateLimit(retryAfterSec){
+    const sec = retryAfterSec || 60;
+    rateLimitedUntil = Date.now() + sec * 1000;
+    setApiHealth('warn', `Rate limit — aguarde ${sec}s`);
+    console.warn(`[CoinGecko] Rate limit atingido. Cooldown de ${sec}s ativado.`);
+  }
+
+  async function cgFetch(url, { timeoutMs = 12000 } = {}){
+    if (isRateLimited()){
+      const remaining = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+      throw new Error(`rate-limited-local:${remaining}`);
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let resp;
+    try {
+      resp = await fetch(url, { headers: cgHeaders(), signal: controller.signal, mode: 'cors', cache: 'no-store' });
+    } catch (err){
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') throw new Error('timeout');
+      if (err instanceof TypeError){
+        console.error('[CoinGecko] Falha de rede/CORS:', err.message,
+          '\n→ Verifique: (1) conexão, (2) se está servindo via http://localhost (não file://),',
+          '(3) se a chave é Demo (não Pro), (4) status.coingecko.com');
+        throw new Error('network-or-cors');
+      }
+      throw err;
+    }
+    clearTimeout(timeoutId);
+    if (resp.status === 429){
+      const retry = parseInt(resp.headers.get('retry-after') || '60', 10);
+      registerRateLimit(retry);
+      throw new Error('rate-limited');
+    }
+    if (resp.status === 401 || resp.status === 403){
+      console.error('[CoinGecko] Autenticação recusada. Verifique se a chave é do plano Demo ' +
+        'e se o host é api.coingecko.com (não pro-api.coingecko.com).');
+      throw new Error('auth-failed');
+    }
+    if (resp.status === 404) throw new Error('not-found');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.json();
+  }
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  let W = 1, H = 1, DPR = 1, bgGrad = null, vigGrad = null;
+
+  // ============================================================
+  // MUNDO INFINITO
+  // ============================================================
+  const WORLD_SIZE = 18000;
+  const HALF_WORLD = WORLD_SIZE / 2;
+  const SPEED_SCALE = 2.0;
+
+  const cam = { x: 0, y: 0, zoom: 1 };
+  let zoomTarget = 1, anchorX = null, anchorY = null;
+  const MIN_ZOOM = 0.06, MAX_ZOOM = 14;
+  let velX = 0, velY = 0, lastMoveTime = 0;
+  const pointers = new Map();
+  let pinchDist = 0;
+  const keys = new Set();
+  const clamp = (v,a,b) => v<a?a:v>b?b:v;
+  const rand = (a,b) => a + Math.random() * (b - a);
+
+  function hash2(x,y){
+    let h = Math.imul(x|0, 374761393) + Math.imul(y|0, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  function screenToWorld(sx,sy){
+    return { x: cam.x + (sx - W*0.5)/cam.zoom, y: cam.y + (sy - H*0.5)/cam.zoom };
+  }
+  function angleLerp(cur, target, maxStep){
+    let d = target - cur;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    if (d > maxStep) d = maxStep;
+    else if (d < -maxStep) d = -maxStep;
+    return cur + d;
+  }
+  function wrapX(x){
+    if (x < -HALF_WORLD) return x + WORLD_SIZE;
+    if (x >= HALF_WORLD) return x - WORLD_SIZE;
+    return x;
+  }
+  function wrapY(y){
+    if (y < -HALF_WORLD) return y + WORLD_SIZE;
+    if (y >= HALF_WORLD) return y - WORLD_SIZE;
+    return y;
+  }
+  function angDiff(a, b){
+    let d = a - b;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return Math.abs(d);
+  }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.max(1, window.innerWidth); H = Math.max(1, window.innerHeight);
+    canvas.width = Math.round(W*DPR); canvas.height = Math.round(H*DPR);
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    bgGrad = ctx.createRadialGradient(W*0.5,H*0.42,0, W*0.5,H*0.42, Math.hypot(W,H)*0.72);
+    bgGrad.addColorStop(0,'#12709a'); bgGrad.addColorStop(0.42,'#0a4a6d'); bgGrad.addColorStop(1,'#031a2a');
+    vigGrad = ctx.createRadialGradient(W*0.5,H*0.5,Math.min(W,H)*0.30, W*0.5,H*0.5, Math.hypot(W,H)*0.62);
+    vigGrad.addColorStop(0,'rgba(0,0,0,0)'); vigGrad.addColorStop(1,'rgba(0,6,14,0.72)');
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ============================================================
+  // FUNDO PROCEDURAL
+  // ============================================================
+  const DEEP_CELL = 3200;
+  function drawDepth(bounds){
+    if (DEEP_CELL * cam.zoom < 420) return;
+    const i0 = Math.floor(bounds.left/DEEP_CELL), i1 = Math.floor(bounds.right/DEEP_CELL);
+    const j0 = Math.floor(bounds.top/DEEP_CELL), j1 = Math.floor(bounds.bottom/DEEP_CELL);
+    for (let j=j0; j<=j1; j++) for (let i=i0; i<=i1; i++){
+      const r = hash2(i*7+3, j*13+5);
+      const wx = (i + hash2(i,j)) * DEEP_CELL, wy = (j + hash2(i+91,j+53)) * DEEP_CELL;
+      const rad = (520 + r*1500) * (0.65 + 0.7*hash2(i+5,j+7));
+      const grd = ctx.createRadialGradient(wx,wy,0, wx,wy,rad);
+      if (r < 0.5){ grd.addColorStop(0,'rgba(0,12,26,0.38)'); grd.addColorStop(1,'rgba(0,12,26,0)'); }
+      else { grd.addColorStop(0,'rgba(70,195,220,0.10)'); grd.addColorStop(1,'rgba(70,195,220,0)'); }
+      ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(wx,wy,rad,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  const WAVE_LAYERS = [
+    { spacing:210, amp:34, len:820, speed:0.55, color:'rgba(110,200,245,0.10)', w:2.6 },
+    { spacing:105, amp:19, len:460, speed:0.85, color:'rgba(150,225,255,0.12)', w:1.7 },
+    { spacing:52,  amp:10, len:250, speed:1.25, color:'rgba(190,240,255,0.14)', w:1.1 }
+  ];
+  function drawWaves(bounds, time){
+    for (const L of WAVE_LAYERS){
+      if (L.spacing * cam.zoom < 14) continue;
+      const startY = Math.floor((bounds.top - L.amp*2)/L.spacing) * L.spacing;
+      const endY = bounds.bottom + L.amp*2;
+      const lineCount = Math.max(1, Math.round((endY - startY)/L.spacing));
+      const segs = Math.max(12, Math.min(220, Math.floor(7000/lineCount)));
+      const step = (bounds.right - bounds.left)/segs;
+      const k1 = Math.PI*2/L.len, k2 = Math.PI*2/(L.len*0.37);
+      ctx.beginPath();
+      for (let n=0; n<=lineCount; n++){
+        const y = startY + n*L.spacing, ph = n*1.7 + y*0.002;
+        for (let i=0; i<=segs; i++){
+          const x = bounds.left + i*step;
+          const yy = y + Math.sin(x*k1 + ph + time*L.speed)*L.amp
+                       + Math.sin(x*k2 + ph*2.3 - time*L.speed*1.7)*L.amp*0.33;
+          if (i===0) ctx.moveTo(x,yy); else ctx.lineTo(x,yy);
+        }
+      }
+      ctx.strokeStyle = L.color; ctx.lineWidth = L.w/cam.zoom;
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+    }
+  }
+
+  const FOAM_CELL = 240;
+  function drawFoam(bounds, time){
+    if (FOAM_CELL*cam.zoom < 26) return;
+    const i0 = Math.floor(bounds.left/FOAM_CELL), i1 = Math.floor(bounds.right/FOAM_CELL);
+    const j0 = Math.floor(bounds.top/FOAM_CELL), j1 = Math.floor(bounds.bottom/FOAM_CELL);
+    if ((i1-i0+1)*(j1-j0+1) > 4000) return;
+    ctx.fillStyle = '#dff4ff';
+    for (let j=j0; j<=j1; j++) for (let i=i0; i<=i1; i++){
+      if (hash2(i,j) > 0.62) continue;
+      const ox = hash2(i+811,j+233), oy = hash2(i+137,j+977), tw = hash2(i+457,j+613);
+      const wx = (i+ox)*FOAM_CELL, wy = (j+oy)*FOAM_CELL;
+      const flicker = 0.5 + 0.5*Math.sin(time*(1.2+tw*2.4) + tw*40);
+      const r = (3.5 + tw*7) * (0.75 + flicker*0.5);
+      ctx.globalAlpha = 0.10 + flicker*0.42;
+      ctx.beginPath(); ctx.arc(wx,wy,r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ============================================================
+  // COMPORTAMENTOS
+  // ============================================================
+  const BEHAVIORS = {
+    whale: {
+      states: {
+        cruise: { duration:[12,24], speed:[0.10,0.18], turnRate:0.15, next:'turn' },
+        turn:   { duration:[3,6],   speed:[0.08,0.14], turnRate:0.32, next:'cruise', turnRange:1.0 },
+        charge: { duration:[1.5,3], speed:[0.55,0.75], turnRate:0.8,  next:'cruise', turnRange:0.3 }
+      },
+      bob:0.05, bobFreq:0.35,
+      perception: { range: 1100, cone: Math.PI * 1.0 },
+      isDefender: true,
+      chargeSpeed: 1.4,
+      touchRadius: 140
+    },
+    shark: {
+      states: {
+        cruise: { duration:[5,10], speed:[0.30,0.45], turnRate:0.40, next:'hunt' },
+        hunt:   { duration:[1.5,3], speed:[0.55,0.75], turnRate:0.65, next:'cruise', turnRange:1.3 },
+        attackOctopus: { duration:[1.5,2.5], speed:[0.7,0.9], turnRate:0.9, next:'cruise', turnRange:0.3 },
+        fleeSmoke:     { duration:[2,3],    speed:[0.8,1.0], turnRate:2.0, next:'cruise', turnRange:2.0 }
+      },
+      perception: { range: 800, cone: Math.PI * 0.8 },
+      octopusDetect: 500,
+      octopusTouch: 100,
+      smokeFearRadius: 320
+    },
+    ray: {
+      states: {
+        cruise: { duration:[15,30], speed:[0.22,0.32], turnRate:0.25, next:'bank' },
+        bank:   { duration:[4,8],   speed:[0.20,0.28], turnRate:0.45, next:'cruise', turnRange:0.7 }
+      },
+      bob:0.03, bobFreq:0.5,
+      perception: { range: 700, cone: Math.PI * 0.7 }
+    },
+    jellyfish: {
+      states: {
+        pulse: { duration:[0.5,1.0], speed:[0.22,0.35], turnRate:0.10, next:'drift', turnRange:0.5 },
+        drift: { duration:[1.5,3.0], speed:[0.02,0.06], turnRate:0.05, next:'pulse' }
+      },
+      upwardBias:-0.04,
+      perception: { range: 500, cone: Math.PI * 1.6 },
+      canFightOctopus: true,
+      shockTouchRadius: 80,
+      shockCooldownTime: 3
+    },
+    turtle: {
+      states: {
+        cruise: { duration:[8,15], speed:[0.15,0.22], turnRate:0.30, next:'turn' },
+        turn:   { duration:[2,4],  speed:[0.12,0.18], turnRate:0.50, next:'cruise', turnRange:0.9 }
+      },
+      perception: { range: 600, cone: Math.PI * 0.75 }
+    },
+    fish: {
+      states: {
+        dart:  { duration:[0.3,0.7], speed:[0.8,1.2], turnRate:1.5, next:'hover', turnRange:0.5 },
+        hover: { duration:[0.8,2.0], speed:[0.10,0.20], turnRate:2.0, next:'dart', turnRange:2.2 }
+      },
+      perception: { range: 400, cone: Math.PI * 0.6 }
+    },
+    crab: {
+      states: {
+        scuttle: { duration:[0.3,0.6], speed:[0.5,0.8], turnRate:2.5, next:'pause', turnRange:2.5 },
+        pause:   { duration:[0.5,1.2], speed:[0.02,0.08], turnRate:1.5, next:'scuttle', turnRange:1.0 }
+      },
+      perception: { range: 300, cone: Math.PI * 0.7 }
+    },
+    sardine: {
+      states: {
+        dart:   { duration:[2,4],     speed:[0.7,1.0], turnRate:1.2, next:'wiggle' },
+        wiggle: { duration:[0.4,1.0], speed:[0.5,0.8], turnRate:3.5, next:'dart', turnRange:2.2 }
+      },
+      perception: { range: 450, cone: Math.PI * 0.55 }
+    },
+    shrimp: {
+      states: {
+        twitch: { duration:[0.3,0.6], speed:[0.3,0.5], turnRate:3.0, next:'pause', turnRange:1.5 },
+        pause:  { duration:[0.5,1.2], speed:[0.05,0.15], turnRate:1.0, next:'twitch' }
+      },
+      perception: { range: 260, cone: Math.PI * 0.65 }
+    },
+    octopus: {
+      states: {
+        roam:   { duration:[3,6],  speed:[0.18,0.28], turnRate:0.6, next:'roam', turnRange:1.2 },
+        stalk:  { duration:[1.5,3], speed:[0.35,0.5],  turnRate:1.2, next:'roam', turnRange:0.6 },
+        attack: { duration:[0.4,0.8], speed:[0.6,0.9], turnRate:2.0, next:'roam', turnRange:0.4 },
+        flee:   { duration:[3,4],  speed:[0.6,0.9],  turnRate:2.5, next:'roam', turnRange:2.0 }
+      }
+    },
+    leviathan: {
+      states: {
+        patrol:  { duration:[8,14], speed:[0.22,0.3], turnRate:0.25, next:'patrol', turnRange:1.0 },
+        chase:   { duration:[3,6],  speed:[0.55,0.8], turnRate:0.6,  next:'patrol', turnRange:0.3 }
+      },
+      bob:0.04, bobFreq:0.2
+    }
+  };
+
+  // ============================================================
+  // POPULAÇÃO
+  // ============================================================
+  const animals = [];
+  const octopuses = [];
+  const leviathans = [];
+  const smokeClouds = [];
+  const shockwaves = [];
+  const electricArcs = [];
+
+  const logoCache = new Map();
+  let dataLoaded = false;
+  const TARGET_POPULATION = 2500;
+  const OCTOPUS_COUNT = 30;
+  const LEVIATHAN_COUNT = 2;
+  const SHARK_PACK_THRESHOLD = 3;
+  const SHARK_PACK_RADIUS = 500;
+
+  const PALETTES = {
+    whale: [
+      { body:'#0a2a5a', mid:'#1a5a9a', belly:'#6ab0e0' },
+      { body:'#1a1a4a', mid:'#2a4a8a', belly:'#7aa0d0' },
+      { body:'#0a3a4a', mid:'#1a6a7a', belly:'#6ac0d0' }
+    ],
+    shark: [
+      { body:'#2a3a4a', mid:'#4a6a8a', belly:'#9ab8d0' },
+      { body:'#3a4a3a', mid:'#5a7a5a', belly:'#a0c8a0' },
+      { body:'#2a2a3a', mid:'#4a4a7a', belly:'#8a8ac0' }
+    ],
+    ray: [
+      { body:'#4a2a5a', mid:'#8a5a9a', belly:'#c8a0e0' },
+      { body:'#5a2a3a', mid:'#9a5a6a', belly:'#e0a0b0' },
+      { body:'#2a3a5a', mid:'#5a6a9a', belly:'#a0b0e0' }
+    ],
+    jellyfish: [
+      { body:'#d04a8a', mid:'#ff8ac0', belly:'#ffddee', glow:'#ff4aaa' },
+      { body:'#a04ad0', mid:'#d08aff', belly:'#e8ccff', glow:'#b04aff' },
+      { body:'#4ad0c8', mid:'#88ffe8', belly:'#ccfff8', glow:'#4affd0' },
+      { body:'#d0d04a', mid:'#ffea88', belly:'#fffacc', glow:'#f0e04a' }
+    ],
+    turtle: [
+      { body:'#1a4a1a', mid:'#3a8a3a', belly:'#80c880' },
+      { body:'#2a4a1a', mid:'#5a8a3a', belly:'#90c870' },
+      { body:'#1a3a2a', mid:'#3a7a5a', belly:'#80c0a0' }
+    ],
+    fish: [
+      { body:'#d07a2a', mid:'#ffaa4a', belly:'#ffddaa' },
+      { body:'#d05a2a', mid:'#ff8a4a', belly:'#ffccaa' },
+      { body:'#d0c02a', mid:'#ffe84a', belly:'#fff8aa' },
+      { body:'#d02a8a', mid:'#ff4ac0', belly:'#ffaadd' }
+    ],
+    crab: [
+      { body:'#b02a1a', mid:'#e05a4a', belly:'#ffaa9a' },
+      { body:'#b04a1a', mid:'#e07a3a', belly:'#ffb890' }
+    ],
+    sardine: [
+      { body:'#7a8aa0', mid:'#b0c0d0', belly:'#e8f0ff' },
+      { body:'#8a9ab0', mid:'#c0d0e0', belly:'#f0f8ff' }
+    ],
+    shrimp: [
+      { body:'#d05a8a', mid:'#ffaac0', belly:'#ffdde8' },
+      { body:'#d07a9a', mid:'#ffc0dd', belly:'#ffeee8' }
+    ]
+  };
+
+  const BASE_SIZE = { whale:200, shark:80, ray:65, jellyfish:50, turtle:45, fish:32, crab:26, sardine:20, shrimp:16, octopus:70, leviathan:220 };
+  function pickPalette(type){
+    const list = PALETTES[type] || PALETTES.fish;
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  const GRID = Math.ceil(Math.sqrt(TARGET_POPULATION));
+  const CELL_SIZE = WORLD_SIZE / GRID;
+
+  function spawnAnimalInCell(coin, type, gx, gy){
+    const baseSize = BASE_SIZE[type] || 30;
+    const sizeMul = type === 'whale' ? (0.85 + Math.random() * 0.4) : (0.75 + Math.random() * 0.55);
+    const size = baseSize * sizeMul;
+    const angle = Math.random() * Math.PI * 2;
+    const x = -HALF_WORLD + (gx + Math.random()) * CELL_SIZE;
+    const y = -HALF_WORLD + (gy + Math.random()) * CELL_SIZE;
+
+    const B = BEHAVIORS[type];
+    const firstStateName = B ? Object.keys(B.states)[0] : 'cruise';
+    const firstState = B ? B.states[firstStateName] : { duration:[2,5], speed:[0.3,0.5] };
+    const targetSpeed = rand(firstState.speed[0], firstState.speed[1]) * SPEED_SCALE;
+    const stateTime = rand(firstState.duration[0], firstState.duration[1]);
+
+    return {
+      id: coin.id, symbol: coin.symbol, name: coin.name, imageUrl: coin.image,
+      type, size, palette: pickPalette(type),
+      x, y, angle, targetAngle: angle,
+      speed: targetSpeed, targetSpeed,
+      state: firstStateName, stateTime,
+      phase: Math.random() * Math.PI * 2,
+      logo: null,
+      fearUntil: 0,
+      teleportFade: 0,
+      isCoin: true,
+      shockCooldown: 0,
+      lastShockAt: 0,
+      chargeTarget: null,
+      chargeUntil: 0,
+      attackTarget: null,
+      packLeader: null
+    };
+  }
+
+  function assignTypes(coins){
+    const n = coins.length, types = new Array(n);
+    for (let i = 0; i < n; i++){
+      const pct = i / n;
+      types[i] = pct < 0.05 ? 'whale'
+              : pct < 0.15 ? 'shark'
+              : pct < 0.30 ? 'ray'
+              : pct < 0.50 ? 'jellyfish'
+              : pct < 0.65 ? 'turtle'
+              : pct < 0.80 ? 'fish'
+              : pct < 0.90 ? 'crab'
+              : pct < 0.97 ? 'sardine'
+              : 'shrimp';
+    }
+    return types;
+  }
+
+  function loadLogos(coins){
+    coins.forEach(coin => {
+      if (!coin.image || logoCache.has(coin.id)) return;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        logoCache.set(coin.id, img);
+        for (let i = 0; i < animals.length; i++){
+          if (animals[i].id === coin.id) animals[i].logo = img;
+        }
+      };
+      img.onerror = () => {};
+      img.src = coin.image;
+    });
+  }
+
+  function buildPopulation(coins){
+    animals.length = 0;
+    if (coins.length){
+      const types = assignTypes(coins);
+      const cells = [];
+      for (let gy = 0; gy < GRID; gy++) for (let gx = 0; gx < GRID; gx++) cells.push({ gx, gy });
+      for (let i = cells.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = cells[i]; cells[i] = cells[j]; cells[j] = t;
+      }
+      const perCoin = Math.ceil(TARGET_POPULATION / coins.length);
+      let idx = 0;
+      for (let ci = 0; ci < coins.length && idx < cells.length; ci++){
+        const coin = coins[ci], type = types[ci];
+        const n = Math.min(perCoin, cells.length - idx);
+        for (let i = 0; i < n; i++){
+          const c = cells[idx++];
+          animals.push(spawnAnimalInCell(coin, type, c.gx, c.gy));
+        }
+      }
+      while (animals.length < TARGET_POPULATION && cells.length > idx){
+        const ci = Math.floor(Math.random() * coins.length);
+        const c = cells[idx++];
+        animals.push(spawnAnimalInCell(coins[ci], types[ci], c.gx, c.gy));
+      }
+      for (let i = 0; i < animals.length; i++)
+        if (logoCache.has(animals[i].id)) animals[i].logo = logoCache.get(animals[i].id);
+    }
+    spawnPredators();
+    const counts = {};
+    for (const a of animals) counts[a.type] = (counts[a.type] || 0) + 1;
+    console.table(counts);
+    console.log(`Total: ${animals.length} animais-moeda, ${octopuses.length} polvos, ${leviathans.length} leviatãs`);
+  }
+
+  function randomWorldPos(){
+    return {
+      x: rand(-HALF_WORLD, HALF_WORLD),
+      y: rand(-HALF_WORLD, HALF_WORLD)
+    };
+  }
+
+  function spawnPredators(){
+    octopuses.length = 0;
+    leviathans.length = 0;
+
+    for (let i = 0; i < OCTOPUS_COUNT; i++){
+      const p = randomWorldPos();
+      const B = BEHAVIORS.octopus;
+      const st = B.states.roam;
+      octopuses.push({
+        x: p.x, y: p.y,
+        angle: Math.random() * Math.PI * 2,
+        targetAngle: Math.random() * Math.PI * 2,
+        speed: rand(st.speed[0], st.speed[1]) * SPEED_SCALE,
+        targetSpeed: rand(st.speed[0], st.speed[1]) * SPEED_SCALE,
+        state: 'roam', stateTime: rand(st.duration[0], st.duration[1]),
+        size: BASE_SIZE.octopus * (0.85 + Math.random() * 0.3),
+        phase: Math.random() * Math.PI * 2,
+        huntRadius: 420,
+        attackRadius: 120,
+        smokeCooldown: 0,
+        stunUntil: 0,
+        fleeUntil: 0,
+        teleportFade: 0,
+        isCoin: false
+      });
+    }
+
+    for (let i = 0; i < LEVIATHAN_COUNT; i++){
+      const p = randomWorldPos();
+      const B = BEHAVIORS.leviathan;
+      const st = B.states.patrol;
+      leviathans.push({
+        x: p.x, y: p.y,
+        angle: Math.random() * Math.PI * 2,
+        targetAngle: Math.random() * Math.PI * 2,
+        speed: rand(st.speed[0], st.speed[1]) * SPEED_SCALE,
+        targetSpeed: rand(st.speed[0], st.speed[1]) * SPEED_SCALE,
+        state: 'patrol', stateTime: rand(st.duration[0], st.duration[1]),
+        size: BASE_SIZE.leviathan * (0.9 + Math.random() * 0.2),
+        phase: Math.random() * Math.PI * 2,
+        detectRadius: 1400,
+        fearRadius: 900,
+        touchRadius: 180,
+        teleportFade: 0,
+        isCoin: false
+      });
+    }
+  }
+
+  // ============================================================
+  // DADOS DE MERCADO
+  // ============================================================
+  const marketCache = new Map();
+
+  async function fetchCryptoData(){
+    try{
+      const url = `${CG_BASE}/coins/markets?vs_currency=usd&order=volume_desc&per_page=250&page=1&price_change_percentage=1h,24h`;
+      const data = await cgFetch(url);
+      const selected = data.filter(c => c.total_volume > 0);
+      selected.forEach(c => {
+        marketCache.set(c.id, {
+          price: c.current_price, marketCap: c.market_cap, volume24h: c.total_volume,
+          fdv: c.fully_diluted_valuation, rank: c.market_cap_rank,
+          circulating: c.circulating_supply, totalSupply: c.total_supply, maxSupply: c.max_supply,
+          change24h: c.price_change_percentage_24h, change1h: c.price_change_percentage_1h_in_currency,
+          high24h: c.high_24h, low24h: c.low_24h, lastUpdated: c.last_updated
+        });
+      });
+      loadLogos(selected);
+      buildPopulation(selected);
+      dataLoaded = true;
+      setApiHealth('ok', 'API ao vivo');
+      console.log(`[CoinGecko] ${animals.length} animais carregados. Modo: ${HAS_KEY ? 'Demo' : 'keyless'}.`);
+    } catch(err){
+      console.warn('[CoinGecko] Falha no mercado:', err.message);
+      if (err.message.startsWith('rate-limited') || err.message === 'rate-limited'){
+        setApiHealth('warn', 'Rate limit — usando cache');
+      } else if (err.message === 'network-or-cors'){
+        setApiHealth('err', 'CORS/rede — usando cache');
+      } else if (err.message === 'auth-failed'){
+        setApiHealth('err', 'Chave inválida — usando cache');
+      } else {
+        setApiHealth('err', 'API offline — usando cache');
+      }
+      if (!dataLoaded){
+        const fallback = [
+          {id:'bitcoin',symbol:'btc',name:'Bitcoin',image:'https://assets.coingecko.com/coins/images/1/large/bitcoin.png',total_volume:28e9},
+          {id:'ethereum',symbol:'eth',name:'Ethereum',image:'https://assets.coingecko.com/coins/images/279/large/ethereum.png',total_volume:15e9},
+          {id:'tether',symbol:'usdt',name:'Tether',image:'https://assets.coingecko.com/coins/images/325/large/Tether.png',total_volume:50e9},
+          {id:'solana',symbol:'sol',name:'Solana',image:'https://assets.coingecko.com/coins/images/4128/large/solana.png',total_volume:3.5e9},
+          {id:'binancecoin',symbol:'bnb',name:'BNB',image:'https://assets.coingecko.com/coins/images/825/large/bnb-icon2_2x.png',total_volume:1.8e9},
+          {id:'ripple',symbol:'xrp',name:'XRP',image:'https://assets.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png',total_volume:900e6},
+          {id:'cardano',symbol:'ada',name:'Cardano',image:'https://assets.coingecko.com/coins/images/975/large/cardano.png',total_volume:400e6},
+          {id:'dogecoin',symbol:'doge',name:'Dogecoin',image:'https://assets.coingecko.com/coins/images/5/large/dogecoin.png',total_volume:80e6},
+          {id:'avalanche-2',symbol:'avax',name:'Avalanche',image:'https://assets.coingecko.com/coins/images/12559/large/Avalanche_Circle_RedWhite_Trans.png',total_volume:40e6},
+          {id:'chainlink',symbol:'link',name:'Chainlink',image:'https://assets.coingecko.com/coins/images/877/large/chainlink-new-logo.png',total_volume:8e6},
+          {id:'uniswap',symbol:'uni',name:'Uniswap',image:'https://assets.coingecko.com/coins/images/12504/large/uniswap-uni.png',total_volume:900e3},
+          {id:'aave',symbol:'aave',name:'Aave',image:'https://assets.coingecko.com/coins/images/12645/large/AAVE.png',total_volume:300e3}
+        ];
+        loadLogos(fallback);
+        buildPopulation(fallback);
+        dataLoaded = true;
+      }
+    }
+  }
+
+  // ============================================================
+  // UTILITÁRIOS
+  // ============================================================
+  function canSee(observer, target, perception){
+    const dx = target.x - observer.x;
+    const dy = target.y - observer.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > perception.range) return false;
+    const angToTarget = Math.atan2(dy, dx);
+    const diff = angDiff(angToTarget, observer.angle);
+    return diff < perception.cone / 2;
+  }
+
+  function teleportAnimal(a){
+    const dist = rand(2000, 5000);
+    const ang = Math.random() * Math.PI * 2;
+    a.x = wrapX(a.x + Math.cos(ang) * dist);
+    a.y = wrapY(a.y + Math.sin(ang) * dist);
+    a.teleportFade = 1;
+    a.fearUntil = 0;
+    shockwaves.push({ x: a.x, y: a.y, r: 10, maxR: 180, life: 1, color: '180,100,255' });
+  }
+
+  function teleportPredator(p, color){
+    const dist = rand(3000, 6000);
+    const ang = Math.random() * Math.PI * 2;
+    const oldX = p.x, oldY = p.y;
+    p.x = wrapX(p.x + Math.cos(ang) * dist);
+    p.y = wrapY(p.y + Math.sin(ang) * dist);
+    p.teleportFade = 1;
+    p.state = 'roam';
+    p.stateTime = rand(3, 6);
+    p.targetAngle = p.angle + (Math.random() - 0.5) * 1.2;
+    if (p.stunUntil !== undefined) p.stunUntil = 0;
+    if (p.fleeUntil !== undefined) p.fleeUntil = 0;
+    shockwaves.push({ x: p.x, y: p.y, r: 10, maxR: 280, life: 1, color: color || '255,180,80' });
+    shockwaves.push({ x: oldX, y: oldY, r: 10, maxR: 200, life: 1, color: '255,255,200' });
+    smokeClouds.push({
+      x: oldX, y: oldY, r: 40, maxR: 220, life: 1,
+      particles: Array.from({ length: 10 }, () => ({
+        ox: rand(-40, 40), oy: rand(-40, 40),
+        vx: rand(-40, 40), vy: rand(-40, 40),
+        r: rand(14, 28)
+      }))
+    });
+  }
+
+  function emitSmoke(p){
+    smokeClouds.push({
+      x: p.x, y: p.y, r: 40, maxR: 260, life: 1,
+      particles: Array.from({ length: 14 }, () => ({
+        ox: rand(-40, 40), oy: rand(-40, 40),
+        vx: rand(-30, 30), vy: rand(-30, 30),
+        r: rand(14, 30)
+      }))
+    });
+  }
+
+  function emitElectricArc(from, to){
+    electricArcs.push({
+      x1: from.x, y1: from.y,
+      x2: to.x, y2: to.y,
+      life: 1,
+      points: Array.from({ length: 7 }, (_, i) => {
+        const t = i / 6;
+        return { t, jx: rand(-30, 30), jy: rand(-30, 30) };
+      })
+    });
+  }
+
+  function isNearSmoke(x, y, radius){
+    for (const s of smokeClouds){
+      if (s.life < 0.3) continue;
+      if (Math.hypot(s.x - x, s.y - y) < radius + s.r * 0.5) return true;
+    }
+    return false;
+  }
+
+  // ============================================================
+  // UPDATE PRINCIPAL
+  // ============================================================
+  function updatePredators(dt, time){
+    const now = performance.now();
+
+    // ---------- Polvos ----------
+    for (const p of octopuses){
+      if (p.teleportFade > 0) p.teleportFade = Math.max(0, p.teleportFade - dt * 1.5);
+
+      if (p.stunUntil > now) continue;
+      if (p.fleeUntil > now){
+        const st = BEHAVIORS.octopus.states.flee;
+        p.state = 'flee';
+        p.angle = angleLerp(p.angle, p.targetAngle, st.turnRate * dt);
+        p.speed += (st.speed[1] * SPEED_SCALE - p.speed) * Math.min(1, dt * 6);
+        p.x = wrapX(p.x + Math.cos(p.angle) * p.speed * dt * 60);
+        p.y = wrapY(p.y + Math.sin(p.angle) * p.speed * dt * 60);
+        continue;
+      }
+
+      p.stateTime -= dt;
+      if (p.smokeCooldown > 0) p.smokeCooldown -= dt;
+
+      let target = null, bestDist = p.huntRadius;
+      for (const a of animals){
+        if (a.teleportFade > 0.5) continue;
+        if (a.type === 'jellyfish' || a.type === 'whale') continue;
+        if (a.type === 'shark' && a.attackTarget === p) continue;
+        const d = Math.hypot(a.x - p.x, a.y - p.y);
+        if (d < bestDist){ bestDist = d; target = a; }
+      }
+
+      if (target){
+        p.state = bestDist < p.attackRadius ? 'attack' : 'stalk';
+        p.targetAngle = Math.atan2(target.y - p.y, target.x - p.x);
+        const st = BEHAVIORS.octopus.states[p.state];
+        p.targetSpeed = rand(st.speed[0], st.speed[1]) * SPEED_SCALE;
+        if (p.state === 'stalk' && p.smokeCooldown <= 0){
+          emitSmoke(p);
+          p.smokeCooldown = 2.5;
+        }
+        if (bestDist < p.attackRadius * 0.5){
+          teleportAnimal(target);
+          emitSmoke(p);
+          p.smokeCooldown = 2.5;
+          p.state = 'roam';
+        }
+      } else {
+        if (p.stateTime <= 0){
+          p.state = 'roam';
+          p.stateTime = rand(3, 6);
+          p.targetAngle = p.angle + (Math.random() - 0.5) * 1.2;
+          const st = BEHAVIORS.octopus.states.roam;
+          p.targetSpeed = rand(st.speed[0], st.speed[1]) * SPEED_SCALE;
+        }
+      }
+
+      const curState = BEHAVIORS.octopus.states[p.state] || BEHAVIORS.octopus.states.roam;
+      p.angle = angleLerp(p.angle, p.targetAngle, curState.turnRate * dt);
+      p.speed += (p.targetSpeed - p.speed) * Math.min(1, dt * 3);
+      p.x = wrapX(p.x + Math.cos(p.angle) * p.speed * dt * 60);
+      p.y = wrapY(p.y + Math.sin(p.angle) * p.speed * dt * 60);
+    }
+
+    // ---------- Leviatãs ----------
+    for (const L of leviathans){
+      if (L.teleportFade > 0) L.teleportFade = Math.max(0, L.teleportFade - dt * 1.5);
+
+      L.stateTime -= dt;
+      let target = null, bestDist = L.detectRadius;
+      for (const a of animals){
+        if (a.teleportFade > 0.5) continue;
+        if (a.type === 'whale') continue;
+        const d = Math.hypot(a.x - L.x, a.y - L.y);
+        if (d < bestDist){ bestDist = d; target = a; }
+      }
+      if (target){
+        L.state = 'chase';
+        L.targetAngle = Math.atan2(target.y - L.y, target.x - L.x);
+        const st = BEHAVIORS.leviathan.states.chase;
+        L.targetSpeed = rand(st.speed[0], st.speed[1]) * SPEED_SCALE;
+        if (bestDist < L.touchRadius){
+          teleportAnimal(target);
+          shockwaves.push({ x: target.x, y: target.y, r: 10, maxR: 320, life: 1, color: '255,80,80' });
+        }
+      } else {
+        if (L.stateTime <= 0){
+          L.state = 'patrol';
+          L.stateTime = rand(8, 14);
+          L.targetAngle = L.angle + (Math.random() - 0.5) * 1.0;
+          const st = BEHAVIORS.leviathan.states.patrol;
+          L.targetSpeed = rand(st.speed[0], st.speed[1]) * SPEED_SCALE;
+        }
+      }
+      const curState = BEHAVIORS.leviathan.states[L.state] || BEHAVIORS.leviathan.states.patrol;
+      L.angle = angleLerp(L.angle, L.targetAngle, curState.turnRate * dt);
+      L.speed += (L.targetSpeed - L.speed) * Math.min(1, dt * 2.5);
+      L.x = wrapX(L.x + Math.cos(L.angle) * L.speed * dt * 60);
+      L.y = wrapY(L.y + Math.sin(L.angle) * L.speed * dt * 60);
+    }
+
+    // ---------- Matilha de tubarões contra leviatãs ----------
+    const sharkList = [];
+    for (const a of animals) if (a.type === 'shark' && a.teleportFade < 0.5) sharkList.push(a);
+
+    let packCount = 0;
+    for (const L of leviathans){
+      if (L.teleportFade > 0.5) continue;
+      const nearbySharks = [];
+      for (const s of sharkList){
+        const d = Math.hypot(s.x - L.x, s.y - L.y);
+        if (d < SHARK_PACK_RADIUS) nearbySharks.push(s);
+      }
+      if (nearbySharks.length >= SHARK_PACK_THRESHOLD){
+        for (const s of nearbySharks){
+          const d = Math.hypot(s.x - L.x, s.y - L.y);
+          s.attackTarget = L;
+          s.state = 'attackOctopus';
+          s.targetAngle = Math.atan2(L.y - s.y, L.x - s.x);
+          const st = BEHAVIORS.shark.states.attackOctopus;
+          s.speed += (st.speed[1] * SPEED_SCALE - s.speed) * Math.min(1, dt * 5);
+          s.angle = angleLerp(s.angle, s.targetAngle, dt * 4);
+          s.x = wrapX(s.x + Math.cos(s.angle) * s.speed * dt * 60);
+          s.y = wrapY(s.y + Math.sin(s.angle) * s.speed * dt * 60);
+          if (d < BEHAVIORS.shark.octopusTouch){
+            teleportPredator(L, '255,100,80');
+            for (const s2 of nearbySharks){
+              s2.attackTarget = null;
+              s2.state = 'cruise';
+              s2.stateTime = rand(3, 6);
+            }
+            packCount += nearbySharks.length;
+            break;
+          }
+        }
+      }
+    }
+    window.__sharkPackCount = packCount;
+
+    // ---------- Animais-moeda ----------
+    let whaleChargeCount = 0;
+    for (let i = 0; i < animals.length; i++){
+      const a = animals[i];
+      const B = BEHAVIORS[a.type];
+      if (!B) continue;
+
+      if (a.teleportFade > 0) a.teleportFade = Math.max(0, a.teleportFade - dt * 1.5);
+      if (a.shockCooldown > 0) a.shockCooldown -= dt;
+
+      // === BALEIA: defensora contra polvos e leviatãs ===
+      if (B.isDefender){
+        const P = B.perception;
+        let target = null, targetDist = Infinity, targetKind = null;
+        for (const p of octopuses){
+          if (p.teleportFade > 0.5) continue;
+          if (p.stunUntil > now) continue;
+          const d = Math.hypot(p.x - a.x, p.y - a.y);
+          if (d < P.range && canSee(a, p, P) && d < targetDist){
+            targetDist = d; target = p; targetKind = 'octopus';
+          }
+        }
+        for (const L of leviathans){
+          if (L.teleportFade > 0.5) continue;
+          const d = Math.hypot(L.x - a.x, L.y - a.y);
+          if (d < P.range && canSee(a, L, P) && d < targetDist){
+            targetDist = d; target = L; targetKind = 'leviathan';
+          }
+        }
+
+        if (target){
+          whaleChargeCount++;
+          a.state = 'charge';
+          a.chargeTarget = target;
+          a.chargeUntil = now + 5000;
+          a.targetAngle = Math.atan2(target.y - a.y, target.x - a.x);
+          const chargeSpd = BEHAVIORS.whale.states.charge.speed[1] * B.chargeSpeed * SPEED_SCALE;
+          a.speed += (chargeSpd - a.speed) * Math.min(1, dt * 5);
+          a.angle = angleLerp(a.angle, a.targetAngle, dt * 3);
+
+          if (targetDist < B.touchRadius){
+            const color = targetKind === 'leviathan' ? '255,120,60' : '255,220,100';
+            teleportPredator(target, color);
+            a.speed = 0.5;
+            a.state = 'cruise';
+            a.stateTime = rand(8, 15);
+            a.chargeTarget = null;
+          } else {
+            a.x = wrapX(a.x + Math.cos(a.angle) * a.speed * dt * 60);
+            a.y = wrapY(a.y + Math.sin(a.angle) * a.speed * dt * 60);
+          }
+          continue;
+        } else {
+          if (a.state === 'charge'){
+            a.state = 'cruise';
+            a.stateTime = rand(8, 15);
+            a.chargeTarget = null;
+          }
+        }
+      }
+
+      // === ÁGUA-VIVA: REAGE apenas ao toque de polvo ===
+      if (B.canFightOctopus){
+        for (const p of octopuses){
+          if (p.teleportFade > 0.5) continue;
+          if (p.stunUntil > now) continue;
+          const d = Math.hypot(p.x - a.x, p.y - a.y);
+          if (d < B.shockTouchRadius && a.shockCooldown <= 0){
+            emitElectricArc(a, p);
+            a.shockCooldown = B.shockCooldownTime;
+            a.lastShockAt = now;
+            emitSmoke(p);
+            p.smokeCooldown = 2.5;
+            if (Math.random() < 0.5){
+              teleportPredator(p, '100,200,255');
+            } else {
+              shockwaves.push({ x: a.x, y: a.y, r: 10, maxR: 260, life: 1, color: '180,255,255' });
+              teleportAnimal(a);
+              shockwaves.push({ x: a.x, y: a.y, r: 10, maxR: 200, life: 1, color: '100,220,255' });
+            }
+          }
+        }
+      }
+
+      // === TUBARÃO: ataca polvo, mas teme a fumaça ===
+      if (a.type === 'shark'){
+        if (a.state === 'fleeSmoke'){
+          const st = B.states.fleeSmoke;
+          a.angle = angleLerp(a.angle, a.targetAngle, st.turnRate * dt);
+          a.speed += (st.speed[1] * SPEED_SCALE - a.speed) * Math.min(1, dt * 5);
+          a.x = wrapX(a.x + Math.cos(a.angle) * a.speed * dt * 60);
+          a.y = wrapY(a.y + Math.sin(a.angle) * a.speed * dt * 60);
+          a.stateTime -= dt;
+          if (a.stateTime <= 0){ a.state = 'cruise'; a.stateTime = rand(3, 6); }
+          continue;
+        }
+
+        if (isNearSmoke(a.x, a.y, B.smokeFearRadius)){
+          a.state = 'fleeSmoke';
+          a.stateTime = rand(2, 3);
+          let nearestSmoke = null, nd = Infinity;
+          for (const s of smokeClouds){
+            const d = Math.hypot(s.x - a.x, s.y - a.y);
+            if (d < nd){ nd = d; nearestSmoke = s; }
+          }
+          if (nearestSmoke){
+            a.targetAngle = Math.atan2(a.y - nearestSmoke.y, a.x - nearestSmoke.x);
+          } else {
+            a.targetAngle = a.angle + Math.PI;
+          }
+          continue;
+        }
+
+        let octo = null, odist = B.octopusDetect;
+        for (const p of octopuses){
+          if (p.teleportFade > 0.5) continue;
+          if (p.stunUntil > now) continue;
+          const d = Math.hypot(p.x - a.x, p.y - a.y);
+          if (d < odist){ odist = d; octo = p; }
+        }
+        if (octo){
+          a.attackTarget = octo;
+          a.state = 'attackOctopus';
+          a.targetAngle = Math.atan2(octo.y - a.y, octo.x - a.x);
+          const st = B.states.attackOctopus;
+          a.speed += (st.speed[1] * SPEED_SCALE - a.speed) * Math.min(1, dt * 5);
+          a.angle = angleLerp(a.angle, a.targetAngle, dt * 4);
+
+          if (isNearSmoke(a.x, a.y, B.smokeFearRadius)){
+            a.attackTarget = null;
+            a.state = 'fleeSmoke';
+            a.stateTime = rand(2, 3);
+            let nearestSmoke = null, nd = Infinity;
+            for (const s of smokeClouds){
+              const d = Math.hypot(s.x - a.x, s.y - a.y);
+              if (d < nd){ nd = d; nearestSmoke = s; }
+            }
+            if (nearestSmoke){
+              a.targetAngle = Math.atan2(a.y - nearestSmoke.y, a.x - nearestSmoke.x);
+            }
+            continue;
+          }
+
+          if (odist < B.octopusTouch){
+            a.attackTarget = null;
+            teleportAnimal(a);
+            a.state = 'fleeSmoke';
+            a.stateTime = rand(2, 3);
+          } else {
+            a.x = wrapX(a.x + Math.cos(a.angle) * a.speed * dt * 60);
+            a.y = wrapY(a.y + Math.sin(a.angle) * a.speed * dt * 60);
+          }
+          continue;
+        } else {
+          a.attackTarget = null;
+        }
+      }
+
+      // === Percepção de predadores ===
+      let fearTarget = null, fearDist = Infinity;
+      const P = B.perception;
+      if (P && !B.isDefender){
+        if (!B.canFightOctopus){
+          for (const p of octopuses){
+            if (p.stunUntil > now) continue;
+            if (p.teleportFade > 0.5) continue;
+            if (a.type === 'shark') continue;
+            const d = Math.hypot(p.x - a.x, p.y - a.y);
+            if (d < P.range && canSee(a, p, P) && d < fearDist){
+              fearDist = d; fearTarget = p;
+            }
+          }
+        }
+        for (const L of leviathans){
+          if (L.teleportFade > 0.5) continue;
+          const d = Math.hypot(L.x - a.x, L.y - a.y);
+          if (d < P.range && canSee(a, L, P) && d < fearDist){
+            fearDist = d; fearTarget = L;
+          }
+        }
+      }
+
+      if (fearTarget){
+        a.fearUntil = now + 2000;
+        const ang = Math.atan2(a.y - fearTarget.y, a.x - fearTarget.x);
+        a.targetAngle = ang;
+        const baseSpeed = (B.states[a.state]?.speed?.[1] || 0.5) * SPEED_SCALE;
+        const fleeSpeed = baseSpeed * 2.2;
+        a.speed += (fleeSpeed - a.speed) * Math.min(1, dt * 6);
+        a.angle = angleLerp(a.angle, a.targetAngle, dt * 4);
+        a.x = wrapX(a.x + Math.cos(a.angle) * a.speed * dt * 60);
+        a.y = wrapY(a.y + Math.sin(a.angle) * a.speed * dt * 60);
+        continue;
+      }
+
+      if (a.fearUntil > now){
+        a.angle = angleLerp(a.angle, a.targetAngle, dt * 3);
+        const baseSpeed = (B.states[a.state]?.speed?.[1] || 0.5) * SPEED_SCALE;
+        a.speed += (baseSpeed * 2 - a.speed) * Math.min(1, dt * 4);
+        a.x = wrapX(a.x + Math.cos(a.angle) * a.speed * dt * 60);
+        a.y = wrapY(a.y + Math.sin(a.angle) * a.speed * dt * 60);
+        continue;
+      }
+
+      a.stateTime -= dt;
+      if (a.stateTime <= 0){
+        const cur = B.states[a.state] || B.states.cruise;
+        const nextName = cur.next || Object.keys(B.states)[0];
+        a.state = nextName;
+        const s = B.states[nextName];
+        a.stateTime = rand(s.duration[0], s.duration[1]);
+        a.targetSpeed = rand(s.speed[0], s.speed[1]) * SPEED_SCALE;
+        if (s.turnRange !== undefined){
+          a.targetAngle = a.angle + (Math.random() - 0.5) * s.turnRange;
+        } else {
+          a.targetAngle = a.angle;
+        }
+      }
+      const s = B.states[a.state];
+      a.angle = angleLerp(a.angle, a.targetAngle, s.turnRate * dt);
+      a.speed += (a.targetSpeed - a.speed) * Math.min(1, dt * 3.0);
+      let vy = Math.sin(a.angle) * a.speed;
+      if (B.bob) vy += Math.sin(time * B.bobFreq + a.phase) * B.bob * SPEED_SCALE;
+      if (B.upwardBias && a.state === 'pulse') vy += B.upwardBias * SPEED_SCALE;
+      a.x = wrapX(a.x + Math.cos(a.angle) * a.speed * dt * 60);
+      a.y = wrapY(a.y + vy * dt * 60);
+    }
+
+    window.__whaleChargeCount = whaleChargeCount;
+
+    // ---------- Fumaça ----------
+    for (let i = smokeClouds.length - 1; i >= 0; i--){
+      const s = smokeClouds[i];
+      s.life -= dt * 0.6;
+      s.r += (s.maxR - s.r) * dt * 1.5;
+      for (const pt of s.particles){
+        pt.ox += pt.vx * dt;
+        pt.oy += pt.vy * dt;
+        pt.vx *= 0.96; pt.vy *= 0.96;
+        pt.r += dt * 10;
+      }
+      if (s.life <= 0) smokeClouds.splice(i, 1);
+    }
+    for (let i = shockwaves.length - 1; i >= 0; i--){
+      const w = shockwaves[i];
+      w.life -= dt * 1.8;
+      w.r += (w.maxR - w.r) * dt * 4;
+      if (w.life <= 0) shockwaves.splice(i, 1);
+    }
+    for (let i = electricArcs.length - 1; i >= 0; i--){
+      const arc = electricArcs[i];
+      arc.life -= dt * 3;
+      if (arc.life <= 0) electricArcs.splice(i, 1);
+    }
+  }
+
+  // ============================================================
+  // SILHUETAS
+  // ============================================================
+  function bodyWhale(c,s,t,a){
+    const charging = a.state === 'charge';
+    const freq = 0.8 + (a.speed || 0.2) * 2;
+    const wag = Math.sin(t * freq + a.phase) * s * 0.09;
+    const bodyColor = charging ? '#3a1a4a' : a.palette.body;
+    c.fillStyle = bodyColor;
+    c.beginPath(); c.ellipse(0,0,s*0.5,s*0.28,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.moveTo(0,s*0.24);
+    c.quadraticCurveTo(wag,s*0.42,wag-s*0.18,s*0.56);
+    c.quadraticCurveTo(wag,s*0.44,wag+s*0.18,s*0.56);
+    c.closePath(); c.fill();
+    c.fillStyle='#eef8ff';
+    c.beginPath(); c.arc(-s*0.28,-s*0.05,s*0.045,0,Math.PI*2); c.fill();
+    if (charging){
+      c.fillStyle = '#ff4a4a';
+      c.globalAlpha = 0.8;
+      c.beginPath(); c.arc(-s*0.28,-s*0.05,s*0.02,0,Math.PI*2); c.fill();
+      c.globalAlpha = 0.2;
+      c.fillStyle = '#ff3030';
+      c.beginPath(); c.arc(0,0,s*0.65,0,Math.PI*2); c.fill();
+      c.globalAlpha = 1;
+    }
+  }
+  function bodyShark(c,s,t,a){
+    const attacking = a.state === 'attackOctopus';
+    const fleeing = a.state === 'fleeSmoke';
+    const freq = 3 + (a.speed || 0.4) * 3;
+    const wag = Math.sin(t * freq + a.phase) * s * 0.04;
+    const bodyColor = attacking ? '#1a2a3a' : (fleeing ? '#3a3a4a' : a.palette.body);
+    c.fillStyle = bodyColor;
+    c.beginPath(); c.ellipse(0,0,s*0.45,s*0.18,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.moveTo(0,-s*0.1); c.lineTo(-s*0.15,-s*0.42); c.lineTo(s*0.05,-s*0.1); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0,s*0.16); c.lineTo(-s*0.2+wag,s*0.34); c.lineTo(-s*0.05,s*0.3); c.lineTo(s*0.15+wag,s*0.34); c.closePath(); c.fill();
+    if (attacking || fleeing){
+      c.fillStyle = attacking ? '#ff4a4a' : '#88ccff';
+      c.globalAlpha = 0.8;
+      c.beginPath(); c.arc(-s*0.25,-s*0.03,s*0.03,0,Math.PI*2); c.fill();
+      c.globalAlpha = 1;
+    }
+  }
+  function bodyRay(c,s,t,a){
+    const flap = Math.sin(t*2 + a.phase) * s*0.04;
+    c.beginPath(); c.ellipse(0,0,s*0.5+flap,s*0.22,0,0,Math.PI*2); c.fill();
+    const wag = Math.sin(t*1.5 + a.phase) * s*0.05;
+    c.beginPath(); c.moveTo(0,s*0.18); c.quadraticCurveTo(wag,s*0.5,wag*1.5,s*0.75); c.stroke();
+  }
+  function bodyJellyfish(c,s,t,a){
+    const pulsing = a.state === 'pulse';
+    const scale = pulsing ? 1.15 : 0.85;
+    const charged = a.shockCooldown > 2;
+    c.beginPath(); c.arc(0,-s*0.05,s*0.35*scale,Math.PI,0); c.closePath(); c.fill();
+    if (charged){
+      c.globalAlpha = 0.6;
+      c.fillStyle = '#aaffff';
+      c.beginPath(); c.arc(0,-s*0.05,s*0.4*scale,Math.PI,0); c.closePath(); c.fill();
+      c.globalAlpha = 1;
+      c.fillStyle = a.palette.body;
+    }
+    for (let i=0;i<6;i++){
+      const ox=(i-2.5)*s*0.11, w=Math.sin(t*2.2+i*0.9+a.phase)*s*0.08;
+      c.beginPath(); c.moveTo(ox,s*0.05); c.quadraticCurveTo(ox+w,s*0.3,ox+w*0.5,s*0.55); c.stroke();
+    }
+  }
+  function bodyTurtle(c,s,t,a){
+    c.beginPath(); c.ellipse(0,0,s*0.38,s*0.26,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(0,-s*0.32,s*0.14,0,Math.PI*2); c.fill();
+    const paddle = Math.sin(t*2.5 + a.phase)*s*0.05;
+    c.beginPath(); c.ellipse(-s*0.32,s*0.05+paddle,s*0.1,s*0.06,0.3,0,Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse( s*0.32,s*0.05-paddle,s*0.1,s*0.06,-0.3,0,Math.PI*2); c.fill();
+  }
+  function bodyFish(c,s,t,a){
+    const freq = 4 + (a.speed||0.3)*5;
+    const amp = a.state === 'dart' ? 0.10 : 0.05;
+    const wag = Math.sin(t*freq + a.phase)*s*amp;
+    c.beginPath(); c.ellipse(0,0,s*0.4,s*0.18,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.moveTo(0,s*0.16); c.lineTo(wag-s*0.2,s*0.32); c.lineTo(wag+s*0.2,s*0.32); c.closePath(); c.fill();
+  }
+  function bodyCrab(c,s,t,a){
+    c.beginPath(); c.ellipse(0,0,s*0.35,s*0.22,0,0,Math.PI*2); c.fill();
+    const claw = Math.sin(t*6 + a.phase)*s*0.03;
+    c.beginPath(); c.arc(-s*0.32,-s*0.08+claw,s*0.11,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc( s*0.32,-s*0.08-claw,s*0.11,0,Math.PI*2); c.fill();
+    c.fillStyle='#eef8ff';
+    c.beginPath(); c.arc(-s*0.12,-s*0.12,s*0.03,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc( s*0.12,-s*0.12,s*0.03,0,Math.PI*2); c.fill();
+  }
+  function bodySardine(c,s,t,a){
+    const freq = 6 + (a.speed||0.7)*4;
+    const wag = Math.sin(t*freq + a.phase)*s*0.07;
+    c.beginPath(); c.ellipse(0,0,s*0.5,s*0.12,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.moveTo(0,s*0.1); c.lineTo(wag-s*0.15,s*0.22); c.lineTo(wag+s*0.15,s*0.22); c.closePath(); c.fill();
+  }
+  function bodyShrimp(c,s,t,a){
+    const tw = a.state === 'twitch' ? 1.15 : 1.0;
+    c.beginPath(); c.arc(0,0,s*0.25*tw,-0.5,Math.PI*1.3); c.stroke();
+    for (let i=0;i<3;i++){
+      const legWag = Math.sin(t*8 + i + a.phase)*s*0.02;
+      c.beginPath(); c.moveTo(-s*0.05+i*s*0.08,s*0.05); c.lineTo(-s*0.05+i*s*0.08+legWag,s*0.18); c.stroke();
+    }
+  }
+  const BODY_FN = {
+    whale:bodyWhale, shark:bodyShark, ray:bodyRay, jellyfish:bodyJellyfish,
+    turtle:bodyTurtle, fish:bodyFish, crab:bodyCrab, sardine:bodySardine, shrimp:bodyShrimp
+  };
+
+  function bodyOctopus(c, s, t, p){
+    const hunting = p.state === 'stalk' || p.state === 'attack';
+    const stunned = p.stunUntil > performance.now();
+    const fleeing = p.fleeUntil > performance.now();
+    let baseHue = hunting ? '#2a0a1a' : '#3a1030';
+    if (stunned) baseHue = '#555555';
+    if (fleeing) baseHue = '#1a2a3a';
+
+    c.fillStyle = baseHue;
+    c.beginPath();
+    c.ellipse(0, -s*0.10, s*0.30, s*0.34, 0, 0, Math.PI*2);
+    c.fill();
+
+    c.fillStyle = stunned ? '#888' : (hunting ? '#ff2a4a' : (fleeing ? '#aaddff' : '#ffaa66'));
+    const eyeGlow = stunned ? 0.3 : (hunting || fleeing ? 0.9 : 0.5);
+    c.globalAlpha = eyeGlow;
+    c.beginPath(); c.arc(-s*0.10, -s*0.16, s*0.045, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.arc( s*0.10, -s*0.16, s*0.045, 0, Math.PI*2); c.fill();
+    c.globalAlpha = 1;
+
+    c.strokeStyle = baseHue;
+    c.lineWidth = s*0.06;
+    c.lineCap = 'round';
+    for (let i = 0; i < 6; i++){
+      const base = (i / 6) * Math.PI * 2;
+      const wig = stunned ? 0 : Math.sin(t * 5 + i * 1.3 + p.phase) * 0.35;
+      const lenMul = stunned ? 0.35 : (fleeing ? 0.75 : 1);
+      const len = s * (0.55 + 0.15 * Math.sin(t * 4 + i)) * lenMul;
+      const a0 = base + wig;
+      const x0 = Math.cos(base) * s * 0.22;
+      const y0 = Math.sin(base) * s * 0.22 - s*0.05;
+      const ctrlX = Math.cos(a0) * s * 0.5;
+      const ctrlY = Math.sin(a0) * s * 0.5;
+      const x1 = Math.cos(a0 + wig * 0.6) * len;
+      const y1 = Math.sin(a0 + wig * 0.6) * len;
+      c.beginPath();
+      c.moveTo(x0, y0);
+      c.quadraticCurveTo(ctrlX, ctrlY, x1, y1);
+      c.stroke();
+    }
+
+    if (p.stunUntil > performance.now()){
+      const remain = (p.stunUntil - performance.now()) / 2000;
+      c.globalAlpha = remain * 0.8;
+      c.strokeStyle = '#ffff66';
+      c.lineWidth = s*0.02;
+      for (let k = 0; k < 4; k++){
+        const ang = (k/4)*Math.PI*2 + t*8;
+        const r = s*0.5;
+        c.beginPath();
+        c.moveTo(Math.cos(ang)*r*0.3, Math.sin(ang)*r*0.3);
+        c.lineTo(Math.cos(ang+0.2)*r, Math.sin(ang+0.2)*r);
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    }
+
+    if (p.smokeCooldown > 0 && p.smokeCooldown < 2.5){
+      c.globalAlpha = (p.smokeCooldown / 2.5) * 0.5;
+      c.fillStyle = '#000';
+      c.beginPath(); c.arc(0, 0, s * (0.5 + (1 - p.smokeCooldown/2.5) * 0.6), 0, Math.PI*2); c.fill();
+      c.globalAlpha = 1;
+    }
+  }
+
+  function bodyLeviathan(c, s, t, L){
+    const chase = L.state === 'chase';
+    const bodyColor = chase ? '#1a0a1a' : '#0a0a1a';
+    const glowColor = chase ? '#ff2a2a' : '#aa3a3a';
+    for (let i = 3; i >= 1; i--){
+      const seg = i * s * 0.22;
+      const wig = Math.sin(t * 2 - i * 0.8 + L.phase) * s * 0.06;
+      c.fillStyle = bodyColor;
+      c.beginPath();
+      c.ellipse(wig, seg, s * 0.22 * (1 - i * 0.12), s * 0.18 * (1 - i * 0.12), 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = bodyColor;
+    c.beginPath();
+    c.ellipse(0, -s * 0.05, s * 0.30, s * 0.26, 0, 0, Math.PI * 2);
+    c.fill();
+    const jawOpen = Math.sin(t * (chase ? 10 : 3) + L.phase) * 0.5 + 0.5;
+    c.fillStyle = '#3a0000';
+    c.beginPath();
+    c.moveTo(-s*0.22, -s*0.18);
+    c.lineTo(-s*0.30 - jawOpen * s * 0.15, -s*0.45);
+    c.lineTo(-s*0.08, -s*0.22);
+    c.closePath(); c.fill();
+    c.beginPath();
+    c.moveTo( s*0.22, -s*0.18);
+    c.lineTo( s*0.30 + jawOpen * s * 0.15, -s*0.45);
+    c.lineTo( s*0.08, -s*0.22);
+    c.closePath(); c.fill();
+    c.fillStyle = '#eee';
+    for (let i = -2; i <= 2; i++){
+      const dx = i * s * 0.05;
+      c.beginPath();
+      c.moveTo(dx, -s*0.22);
+      c.lineTo(dx + s*0.02, -s*0.30 - jawOpen * s*0.08);
+      c.lineTo(dx + s*0.04, -s*0.22);
+      c.closePath(); c.fill();
+    }
+    const eyeGlow = chase ? 1 : 0.6;
+    c.globalAlpha = eyeGlow;
+    c.fillStyle = glowColor;
+    c.beginPath(); c.arc(-s*0.12, -s*0.10, s*0.05, 0, Math.PI*2); c.fill();
+    c.beginPath(); c.arc( s*0.12, -s*0.10, s*0.05, 0, Math.PI*2); c.fill();
+    c.globalAlpha = 1;
+    if (chase){
+      c.globalAlpha = 0.25;
+      c.fillStyle = '#ff2a2a';
+      c.beginPath(); c.arc(0, -s*0.05, s*0.55, 0, Math.PI*2); c.fill();
+      c.globalAlpha = 1;
+    }
+  }
+
+  // ============================================================
+  // DESENHO
+  // ============================================================
+  function drawAnimalAt(a, x, y, time, detail){
+    const s = a.size, z = cam.zoom, pal = a.palette;
+    const drawBody = BODY_FN[a.type] || bodyFish;
+    const t = time + a.phase;
+    const fade = a.teleportFade || 0;
+    const alpha = 1 - fade;
+    if (alpha <= 0.02) return;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+    ctx.rotate(a.angle + Math.PI/2);
+    if (fade > 0) ctx.scale(1 - fade * 0.4, 1 - fade * 0.4);
+
+    if (a.fearUntil > performance.now() && a.type !== 'whale'){
+      ctx.globalAlpha = alpha * 0.25;
+      ctx.fillStyle = '#ff6060';
+      ctx.beginPath(); ctx.arc(0, 0, s * 0.7, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = alpha;
+    }
+
+    if (a.type === 'jellyfish' && pal.glow && detail){
+      const intensity = a.state === 'pulse' ? 1.4 : 0.8;
+      ctx.fillStyle = pal.glow;
+      for (let g = 3; g >= 1; g--){
+        ctx.globalAlpha = alpha * (0.12 / g) * intensity;
+        ctx.beginPath(); ctx.arc(0, -s*0.05, s*0.35*(1+g*0.35), 0, Math.PI*2); ctx.fill();
+      }
+      ctx.globalAlpha = alpha;
+    }
+
+    ctx.fillStyle = pal.body;
+    ctx.strokeStyle = pal.mid;
+    ctx.lineWidth = 1.4 / z;
+    drawBody(ctx, s, t, a);
+
+    if (detail){
+      ctx.fillStyle = pal.belly;
+      ctx.globalAlpha = alpha * 0.55;
+      ctx.beginPath(); ctx.ellipse(0, s*0.08, s*0.32, s*0.10, 0, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = alpha;
+    }
+
+    if (detail && a.logo && a.logo.complete && a.logo.naturalWidth > 0){
+      ctx.rotate(-a.angle - Math.PI/2);
+      const logoSize = s * 0.30;
+      ctx.shadowColor = 'rgba(0,0,0,0.5)';
+      ctx.shadowBlur = 6 / z;
+      ctx.drawImage(a.logo, -logoSize/2, -logoSize/2, logoSize, logoSize);
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }
+
+  let visibleCount = 0;
+  function drawAnimals(bounds, time){
+    const z = cam.zoom, margin = 150;
+    visibleCount = 0;
+    for (let i = 0; i < animals.length; i++){
+      const a = animals[i];
+      const kxMin = Math.floor((bounds.left  - margin - a.x) / WORLD_SIZE);
+      const kxMax = Math.ceil ((bounds.right + margin - a.x) / WORLD_SIZE);
+      const kyMin = Math.floor((bounds.top   - margin - a.y) / WORLD_SIZE);
+      const kyMax = Math.ceil ((bounds.bottom+ margin - a.y) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const wx = a.x + kx*WORLD_SIZE, wy = a.y + ky*WORLD_SIZE;
+        if (wx < bounds.left - margin || wx > bounds.right + margin) continue;
+        if (wy < bounds.top  - margin || wy > bounds.bottom + margin) continue;
+        visibleCount++;
+        const screenSize = a.size * z;
+        if (screenSize < 4){
+          ctx.fillStyle = a.palette.mid; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.arc(wx, wy, Math.max(1.8/z, a.size*0.35), 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+          continue;
+        }
+        drawAnimalAt(a, wx, wy, time, screenSize >= 14);
+      }
+    }
+  }
+
+  function drawPredators(bounds, time){
+    const z = cam.zoom, margin = 400;
+
+    for (const s of smokeClouds){
+      const kxMin = Math.floor((bounds.left - margin - s.x) / WORLD_SIZE);
+      const kxMax = Math.ceil((bounds.right + margin - s.x) / WORLD_SIZE);
+      const kyMin = Math.floor((bounds.top - margin - s.y) / WORLD_SIZE);
+      const kyMax = Math.ceil((bounds.bottom - margin - s.y) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const wx = s.x + kx*WORLD_SIZE, wy = s.y + ky*WORLD_SIZE;
+        if (wx < bounds.left - margin || wx > bounds.right + margin) continue;
+        if (wy < bounds.top - margin || wy > bounds.bottom + margin) continue;
+        ctx.save();
+        ctx.globalAlpha = s.life * 0.75;
+        for (const pt of s.particles){
+          const grd = ctx.createRadialGradient(wx + pt.ox, wy + pt.oy, 0, wx + pt.ox, wy + pt.oy, pt.r);
+          grd.addColorStop(0, 'rgba(0,0,0,0.9)');
+          grd.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = grd;
+          ctx.beginPath(); ctx.arc(wx + pt.ox, wy + pt.oy, pt.r, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    for (const w of shockwaves){
+      const kxMin = Math.floor((bounds.left - margin - w.x) / WORLD_SIZE);
+      const kxMax = Math.ceil((bounds.right + margin - w.x) / WORLD_SIZE);
+      const kyMin = Math.floor((bounds.top - margin - w.y) / WORLD_SIZE);
+      const kyMax = Math.ceil((bounds.bottom + margin - w.y) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const wx = w.x + kx*WORLD_SIZE, wy = w.y + ky*WORLD_SIZE;
+        if (wx < bounds.left - margin || wx > bounds.right + margin) continue;
+        if (wy < bounds.top - margin || wy > bounds.bottom + margin) continue;
+        ctx.strokeStyle = `rgba(${w.color}, ${w.life * 0.8})`;
+        ctx.lineWidth = 3 / z;
+        ctx.beginPath(); ctx.arc(wx, wy, w.r, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+
+    for (const arc of electricArcs){
+      const kxMin = Math.floor((bounds.left - margin - arc.x1) / WORLD_SIZE);
+      const kxMax = Math.ceil((bounds.right + margin - arc.x1) / WORLD_SIZE);
+      const kyMin = Math.floor((bounds.top - margin - arc.y1) / WORLD_SIZE);
+      const kyMax = Math.ceil((bounds.bottom + margin - arc.y1) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const x1 = arc.x1 + kx*WORLD_SIZE, y1 = arc.y1 + ky*WORLD_SIZE;
+        const x2 = arc.x2 + kx*WORLD_SIZE, y2 = arc.y2 + ky*WORLD_SIZE;
+        ctx.save();
+        ctx.globalAlpha = arc.life;
+        ctx.strokeStyle = '#aaffff';
+        ctx.shadowColor = '#66ffff';
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 3 / z;
+        ctx.beginPath();
+        for (let i = 0; i < arc.points.length; i++){
+          const p = arc.points[i];
+          const x = x1 + (x2 - x1) * p.t + p.jx / z;
+          const y = y1 + (y2 - y1) * p.t + p.jy / z;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1 / z;
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    for (const p of octopuses){
+      const fade = p.teleportFade || 0;
+      const alpha = 1 - fade;
+      if (alpha <= 0.02) continue;
+      const kxMin = Math.floor((bounds.left - margin - p.x) / WORLD_SIZE);
+      const kxMax = Math.ceil((bounds.right + margin - p.x) / WORLD_SIZE);
+      const kyMin = Math.floor((bounds.top - margin - p.y) / WORLD_SIZE);
+      const kyMax = Math.ceil((bounds.bottom + margin - p.y) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const wx = p.x + kx*WORLD_SIZE, wy = p.y + ky*WORLD_SIZE;
+        if (wx < bounds.left - margin || wx > bounds.right + margin) continue;
+        if (wy < bounds.top - margin || wy > bounds.bottom + margin) continue;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(wx, wy);
+        ctx.rotate(p.angle + Math.PI/2);
+        if (fade > 0) ctx.scale(1 - fade * 0.5, 1 - fade * 0.5);
+        bodyOctopus(ctx, p.size, time + p.phase, p);
+        ctx.restore();
+      }
+    }
+
+    for (const L of leviathans){
+      const fade = L.teleportFade || 0;
+      const alpha = 1 - fade;
+      if (alpha <= 0.02) continue;
+      const kxMin = Math.floor((bounds.left - margin - L.x) / WORLD_SIZE);
+      const kxMax = Math.ceil((bounds.right + margin - L.x) / WORLD_SIZE);
+      const kyMin = Math.floor((bounds.top - margin - L.y) / WORLD_SIZE);
+      const kyMax = Math.ceil((bounds.bottom + margin - L.y) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const wx = L.x + kx*WORLD_SIZE, wy = L.y + ky*WORLD_SIZE;
+        if (wx < bounds.left - margin || wx > bounds.right + margin) continue;
+        if (wy < bounds.top - margin || wy > bounds.bottom + margin) continue;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(wx, wy);
+        ctx.rotate(L.angle + Math.PI/2);
+        if (fade > 0) ctx.scale(1 - fade * 0.5, 1 - fade * 0.5);
+        bodyLeviathan(ctx, L.size, time + L.phase, L);
+        ctx.restore();
+      }
+    }
+  }
+
+  function render(time){
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+    const z = cam.zoom;
+    ctx.setTransform(DPR*z, 0, 0, DPR*z, DPR*(W*0.5 - cam.x*z), DPR*(H*0.5 - cam.y*z));
+    const halfW = W/(2*z), halfH = H/(2*z);
+    const bounds = { left:cam.x-halfW, right:cam.x+halfW, top:cam.y-halfH, bottom:cam.y+halfH };
+    drawDepth(bounds);
+    drawWaves(bounds, time);
+    drawFoam(bounds, time);
+    drawAnimals(bounds, time);
+    drawPredators(bounds, time);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.fillStyle = vigGrad; ctx.fillRect(0, 0, W, H);
+  }
+
+  // ============================================================
+  // CÂMERA + HUD
+  // ============================================================
+  let hudTimer = 0;
+  const hx = document.getElementById('hx'), hy = document.getElementById('hy');
+  const hvis = document.getElementById('hvis'), htot = document.getElementById('htot');
+  const hzoom = document.getElementById('hzoom'), zoomLabelEl = document.getElementById('zoomLabel');
+  const hoct = document.getElementById('hoct'), hlev = document.getElementById('hlev');
+  const hstun = document.getElementById('hstun'), hflee = document.getElementById('hflee');
+  const hwhale = document.getElementById('hwhale');
+  const hshark = document.getElementById('hshark');
+
+  function update(dt, now){
+    const ax = (anchorX === null) ? W*0.5 : anchorX;
+    const ay = (anchorY === null) ? H*0.5 : anchorY;
+    if (Math.abs(zoomTarget - cam.zoom) > 1e-6){
+      const before = screenToWorld(ax, ay);
+      cam.zoom += (zoomTarget - cam.zoom) * Math.min(1, dt*10);
+      const after = screenToWorld(ax, ay);
+      cam.x += before.x - after.x; cam.y += before.y - after.y;
+    }
+    let mx = 0, my = 0;
+    if (keys.has('w') || keys.has('arrowup')) my -= 1;
+    if (keys.has('s') || keys.has('arrowdown')) my += 1;
+    if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
+    if (keys.has('d') || keys.has('arrowright')) mx += 1;
+    if (mx || my){
+      const len = Math.hypot(mx, my), sp = 780/cam.zoom*dt;
+      cam.x += (mx/len)*sp; cam.y += (my/len)*sp;
+      velX = velY = 0;
+    }
+    if (pointers.size === 0 && (velX || velY)){
+      if (now - lastMoveTime > 110){ velX = 0; velY = 0; }
+      else {
+        cam.x += velX*dt*60; cam.y += velY*dt*60;
+        const decay = Math.pow(0.05, dt);
+        velX *= decay; velY *= decay;
+        if (Math.abs(velX) < 0.4) velX = 0;
+        if (Math.abs(velY) < 0.4) velY = 0;
+      }
+    }
+    updatePredators(dt, now/1000);
+    hudTimer += dt;
+    if (hudTimer > 0.1){
+      hudTimer = 0;
+      hx.textContent = Math.round(cam.x);
+      hy.textContent = Math.round(cam.y);
+      hvis.textContent = visibleCount;
+      htot.textContent = animals.length;
+      hzoom.textContent = Math.round(cam.zoom*100) + '%';
+      zoomLabelEl.textContent = Math.round(cam.zoom*100) + '%';
+      hoct.textContent = octopuses.length;
+      hlev.textContent = leviathans.length;
+      let stunCount = 0, fleeCount = 0, sharkPack = 0;
+      const nowMs = performance.now();
+      for (const p of octopuses) if (p.stunUntil > nowMs) stunCount++;
+      for (const a of animals){
+        if (a.fearUntil > nowMs) fleeCount++;
+        if (a.type === 'shark' && a.attackTarget) sharkPack++;
+      }
+      hstun.textContent = stunCount;
+      hflee.textContent = fleeCount;
+      hwhale.textContent = window.__whaleChargeCount || 0;
+      hshark.textContent = sharkPack;
+      if (apiHealth.status === 'warn' && !isRateLimited()){
+        setApiHealth('ok', 'API ao vivo');
+      }
+    }
+  }
+
+  let last = performance.now();
+  function frame(now){
+    const dt = Math.min(0.05, Math.max(0, (now - last)/1000));
+    last = now;
+    update(dt, now);
+    render(now/1000);
+    requestAnimationFrame(frame);
+  }
+
+  // ============================================================
+  // PAINEL DE DETALHES
+  // ============================================================
+  const detailPanel = document.getElementById('detail-panel');
+  const dpLogo = document.getElementById('dp-logo');
+  const dpName = document.getElementById('dp-name');
+  const dpSymbol = document.getElementById('dp-symbol');
+  const dpClose = document.getElementById('dp-close');
+  const dpBack = document.getElementById('dp-back');
+  const dpDot = document.getElementById('dpDot');
+  const dpStatusText = document.getElementById('dpStatusText');
+
+  const dpPrice = document.getElementById('dp-price');
+  const dpMcap = document.getElementById('dp-mcap');
+  const dpVol = document.getElementById('dp-vol');
+  const dpFdv = document.getElementById('dp-fdv');
+  const dpRank = document.getElementById('dp-rank');
+  const dpCirculating = document.getElementById('dp-circulating');
+  const dpTotalSupply = document.getElementById('dp-total-supply');
+  const dpMaxSupply = document.getElementById('dp-max-supply');
+  const dpChange24h = document.getElementById('dp-change-24h');
+  const dpChange1h = document.getElementById('dp-change-1h');
+  const dpHigh24h = document.getElementById('dp-high-24h');
+  const dpLow24h = document.getElementById('dp-low-24h');
+
+  let activeDetailId = null;
+  let activeDetailTimer = null;
+  let clickDebounceTimer = null;
+
+  function setDpStatus(kind, text){
+    dpDot.className = 'dot' + (kind === 'ok' ? '' : kind === 'stale' ? ' stale' : ' error');
+    dpStatusText.textContent = text;
+  }
+
+  function formatNumber(num, currency){
+    if (num === null || num === undefined || isNaN(num)) return '—';
+    if (num >= 1e12) return (currency ? '$ ' : '') + (num / 1e12).toFixed(2) + 'T';
+    if (num >= 1e9)  return (currency ? '$ ' : '') + (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6)  return (currency ? '$ ' : '') + (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3)  return (currency ? '$ ' : '') + (num / 1e3).toFixed(2) + 'K';
+    if (num < 0.01)  return (currency ? '$ ' : '') + num.toFixed(6);
+    return (currency ? '$ ' : '') + num.toFixed(2);
+  }
+
+  function formatPercent(val){
+    if (val === null || val === undefined || isNaN(val)) return '—';
+    return (val >= 0 ? '+' : '') + val.toFixed(2) + '%';
+  }
+
+  function setChangeClass(el, val){
+    el.classList.remove('up', 'down');
+    if (val === null || val === undefined || isNaN(val)) return;
+    if (val > 0) el.classList.add('up');
+    else if (val < 0) el.classList.add('down');
+  }
+
+  function fillFromCache(d){
+    if (!d) return;
+    dpPrice.textContent = formatNumber(d.price, true);
+    dpMcap.textContent = formatNumber(d.marketCap, true);
+    dpVol.textContent = formatNumber(d.volume24h, true);
+    dpFdv.textContent = formatNumber(d.fdv, true);
+    dpRank.textContent = d.rank ? '#' + d.rank : '—';
+    dpCirculating.textContent = formatNumber(d.circulating, false);
+    dpTotalSupply.textContent = formatNumber(d.totalSupply, false);
+    dpMaxSupply.textContent = formatNumber(d.maxSupply, false);
+    dpChange24h.textContent = formatPercent(d.change24h);
+    setChangeClass(dpChange24h, d.change24h);
+    dpChange1h.textContent = formatPercent(d.change1h);
+    setChangeClass(dpChange1h, d.change1h);
+    dpHigh24h.textContent = formatNumber(d.high24h, true);
+    dpLow24h.textContent = formatNumber(d.low24h, true);
+  }
+
+  function fillFromLive(md, rank){
+    dpPrice.textContent = formatNumber(md.current_price?.usd, true);
+    dpMcap.textContent = formatNumber(md.market_cap?.usd, true);
+    dpVol.textContent = formatNumber(md.total_volume?.usd, true);
+    dpFdv.textContent = formatNumber(md.fully_diluted_valuation?.usd, true);
+    dpRank.textContent = rank ? '#' + rank : '—';
+    dpCirculating.textContent = formatNumber(md.circulating_supply, false);
+    dpTotalSupply.textContent = formatNumber(md.total_supply, false);
+    dpMaxSupply.textContent = formatNumber(md.max_supply, false);
+    const c24 = md.price_change_percentage_24h;
+    dpChange24h.textContent = formatPercent(c24); setChangeClass(dpChange24h, c24);
+    const c1 = md.price_change_percentage_1h_in_currency?.usd;
+    dpChange1h.textContent = formatPercent(c1); setChangeClass(dpChange1h, c1);
+    dpHigh24h.textContent = formatNumber(md.high_24h?.usd, true);
+    dpLow24h.textContent = formatNumber(md.low_24h?.usd, true);
+  }
+
+  function scheduleNextDetailRefresh(animal){
+    clearTimeout(activeDetailTimer);
+    activeDetailTimer = setTimeout(() => {
+      if (activeDetailId === animal.id) refreshDetail(animal, false);
+    }, DETAIL_REFRESH_MS);
+  }
+
+  async function refreshDetail(animal, isFirst){
+    try{
+      const url = `${CG_BASE}/coins/${animal.id}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=false`;
+      const data = await cgFetch(url);
+      if (activeDetailId !== animal.id) return;
+      fillFromLive(data.market_data, data.market_cap_rank);
+      const lu = data.market_data?.last_updated;
+      const luStr = lu ? new Date(lu).toLocaleTimeString('pt-BR') : '—';
+      setDpStatus('ok', `Ao vivo · atualizado ${luStr}`);
+      scheduleNextDetailRefresh(animal);
+    } catch(err){
+      if (activeDetailId !== animal.id) return;
+      const msg = err.message || '';
+      if (msg.startsWith('rate-limited')){
+        const sec = msg.includes(':') ? msg.split(':')[1] : '60';
+        setDpStatus('stale', `Rate limit — dados em cache (${sec}s)`);
+        clearTimeout(activeDetailTimer);
+        activeDetailTimer = setTimeout(() => {
+          if (activeDetailId === animal.id) refreshDetail(animal, false);
+        }, (parseInt(sec, 10) + 2) * 1000);
+      } else if (msg === 'network-or-cors'){
+        setDpStatus('error', 'CORS/rede — dados em cache');
+        scheduleNextDetailRefresh(animal);
+      } else if (msg === 'timeout'){
+        setDpStatus('error', 'Timeout — dados em cache');
+        scheduleNextDetailRefresh(animal);
+      } else if (msg === 'auth-failed'){
+        setDpStatus('error', 'Chave inválida — dados em cache');
+      } else {
+        setDpStatus('error', 'Falha na API — dados em cache');
+      }
+      if (isFirst){
+        const cached = marketCache.get(animal.id);
+        if (cached) fillFromCache(cached);
+      }
+    }
+  }
+
+  function showDetailPanel(animal){
+    activeDetailId = animal.id;
+    clearTimeout(activeDetailTimer);
+    dpLogo.src = animal.imageUrl || '';
+    dpLogo.alt = animal.name || 'logo';
+    dpName.textContent = animal.name || '—';
+    dpSymbol.textContent = (animal.symbol || '—').toUpperCase();
+    const cached = marketCache.get(animal.id) || null;
+    if (cached) fillFromCache(cached);
+    else {
+      dpPrice.textContent = '—'; dpMcap.textContent = '—'; dpVol.textContent = '—';
+      dpFdv.textContent = '—'; dpRank.textContent = '—';
+      dpCirculating.textContent = '—'; dpTotalSupply.textContent = '—'; dpMaxSupply.textContent = '—';
+      dpChange24h.textContent = '—'; dpChange1h.textContent = '—';
+      dpHigh24h.textContent = '—'; dpLow24h.textContent = '—';
+    }
+    detailPanel.classList.add('open');
+    if (isRateLimited()){
+      const sec = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+      setDpStatus('stale', `Rate limit — dados em cache (${sec}s)`);
+      clearTimeout(activeDetailTimer);
+      activeDetailTimer = setTimeout(() => {
+        if (activeDetailId === animal.id) refreshDetail(animal, true);
+      }, (sec + 2) * 1000);
+    } else {
+      setDpStatus('ok', 'Buscando dados em tempo real…');
+      refreshDetail(animal, true);
+    }
+  }
+
+  function closeDetailPanel(){
+    activeDetailId = null;
+    clearTimeout(activeDetailTimer);
+    detailPanel.classList.remove('open');
+  }
+
+  dpClose.addEventListener('click', closeDetailPanel);
+  dpBack.addEventListener('click', closeDetailPanel);
+  detailPanel.addEventListener('click', (e) => {
+    if (e.target === detailPanel) closeDetailPanel();
+  });
+
+  let downX = 0, downY = 0, downTime = 0;
+  canvas.addEventListener('pointerdown', (e) => {
+    downX = e.clientX; downY = e.clientY; downTime = performance.now();
+  });
+
+  canvas.addEventListener('pointerup', (e) => {
+    const dx = e.clientX - downX, dy = e.clientY - downY;
+    const dist = Math.hypot(dx, dy);
+    const elapsed = performance.now() - downTime;
+    if (dist > 12 || elapsed > 500) return;
+
+    const worldPos = screenToWorld(e.clientX, e.clientY);
+    let closest = null, closestDist = Infinity;
+    const marginWorld = 80 / cam.zoom;
+
+    for (let i = 0; i < animals.length; i++){
+      const a = animals[i];
+      if (a.teleportFade > 0.5) continue;
+      const kxMin = Math.floor((worldPos.x - marginWorld - a.x) / WORLD_SIZE);
+      const kxMax = Math.ceil((worldPos.x + marginWorld - a.x) / WORLD_SIZE);
+      const kyMin = Math.floor((worldPos.y - marginWorld - a.y) / WORLD_SIZE);
+      const kyMax = Math.ceil((worldPos.y + marginWorld - a.y) / WORLD_SIZE);
+      for (let kx = kxMin; kx <= kxMax; kx++) for (let ky = kyMin; ky <= kyMax; ky++){
+        const wx = a.x + kx * WORLD_SIZE;
+        const wy = a.y + ky * WORLD_SIZE;
+        const d = Math.hypot(worldPos.x - wx, worldPos.y - wy);
+        const hitRadius = Math.max(40 / cam.zoom, a.size * 0.45);
+        if (d < hitRadius && d < closestDist){
+          closestDist = d;
+          closest = a;
+        }
+      }
+    }
+
+    if (closest){
+      clearTimeout(clickDebounceTimer);
+      clickDebounceTimer = setTimeout(() => {
+        showDetailPanel(closest);
+      }, CLICK_DEBOUNCE_MS);
+    }
+  });
+
+  // ============================================================
+  // CONTROLES
+  // ============================================================
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    if (pointers.size === 1){ canvas.classList.add('dragging'); velX = velY = 0; }
+    else if (pointers.size === 2){
+      const p = [...pointers.values()];
+      pinchDist = Math.hypot(p[0].x-p[1].x, p[0].y-p[1].y);
+    }
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = pointers.get(e.pointerId); if (!p) return;
+    const px = p.x, py = p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (pointers.size === 1){
+      const dx = p.x - px, dy = p.y - py;
+      cam.x -= dx/cam.zoom; cam.y -= dy/cam.zoom;
+      velX = -dx/cam.zoom; velY = -dy/cam.zoom;
+      lastMoveTime = performance.now();
+    } else if (pointers.size === 2){
+      const pts = [...pointers.values()];
+      const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+      if (pinchDist > 0 && d > 0){
+        anchorX = (pts[0].x+pts[1].x)*0.5;
+        anchorY = (pts[0].y+pts[1].y)*0.5;
+        zoomTarget = clamp(zoomTarget * (d/pinchDist), MIN_ZOOM, MAX_ZOOM);
+      }
+      pinchDist = d;
+    }
+  });
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = 0;
+    if (pointers.size === 0) canvas.classList.remove('dragging');
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('pointerleave', endPointer);
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = Math.exp(-e.deltaY * 0.0016);
+    anchorX = e.clientX; anchorY = e.clientY;
+    zoomTarget = clamp(zoomTarget * factor, MIN_ZOOM, MAX_ZOOM);
+  }, { passive:false });
+
+  const btnIn = document.getElementById('zoomIn'), btnOut = document.getElementById('zoomOut'), btnRes = document.getElementById('resetZoom');
+  function zoomButton(f){ anchorX = null; anchorY = null; zoomTarget = clamp(zoomTarget * f, MIN_ZOOM, MAX_ZOOM); }
+  btnIn.addEventListener('click',  () => zoomButton(1.6));
+  btnOut.addEventListener('click', () => zoomButton(1/1.6));
+  btnRes.addEventListener('click', () => { anchorX = null; anchorY = null; zoomTarget = 1; velX = velY = 0; });
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+    keys.add(k);
+    if (k === '+' || k === '=') zoomButton(1.4);
+    if (k === '-' || k === '_') zoomButton(1/1.4);
+    if (k === '0'){ anchorX = null; anchorY = null; zoomTarget = 1; }
+  });
+  window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur', () => keys.clear());
+
+  // ============================================================
+  // SOM DO OCEANO
+  // ============================================================
+  const oceanAudio = {
+    ctx: null, master: null, playing: false,
+    makePinkNoise(seconds, sampleRate){
+      const length = Math.floor(seconds * sampleRate);
+      const buffer = this.ctx.createBuffer(2, length, sampleRate);
+      for (let ch = 0; ch < 2; ch++){
+        const data = buffer.getChannelData(ch);
+        let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+        for (let i = 0; i < length; i++){
+          const w = Math.random() * 2 - 1;
+          b0 = 0.99886*b0 + w*0.0555179;
+          b1 = 0.99332*b1 + w*0.0750759;
+          b2 = 0.96900*b2 + w*0.1538520;
+          b3 = 0.86650*b3 + w*0.3104856;
+          b4 = 0.55000*b4 + w*0.5329522;
+          b5 = -0.7616*b5 - w*0.0168980;
+          const out = (b0+b1+b2+b3+b4+b5+b6+w*0.5362) * 0.11;
+          b6 = w * 0.115926;
+          data[i] = out;
+        }
+      }
+      return buffer;
+    },
+    makeBrownNoise(seconds, sampleRate){
+      const length = Math.floor(seconds * sampleRate);
+      const buffer = this.ctx.createBuffer(2, length, sampleRate);
+      for (let ch = 0; ch < 2; ch++){
+        const data = buffer.getChannelData(ch);
+        let last = 0;
+        for (let i = 0; i < length; i++){
+          const w = Math.random() * 2 - 1;
+          last = (last + 0.02 * w) / 1.02;
+          data[i] = last * 3.5;
+        }
+      }
+      return buffer;
+    },
+    init(){
+      if (this.ctx) return;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      this.ctx = new AC();
+      const sr = this.ctx.sampleRate;
+      const pinkBuf = this.makePinkNoise(8, sr);
+      const brownBuf = this.makeBrownNoise(8, sr);
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0;
+      this.master.connect(this.ctx.destination);
+      const deep = this.ctx.createBufferSource();
+      deep.buffer = brownBuf; deep.loop = true;
+      deep.start(0, Math.random() * 6);
+      const deepLP = this.ctx.createBiquadFilter();
+      deepLP.type = 'lowpass'; deepLP.frequency.value = 160; deepLP.Q.value = 0.5;
+      const deepHP = this.ctx.createBiquadFilter();
+      deepHP.type = 'highpass'; deepHP.frequency.value = 40;
+      const deepGain = this.ctx.createGain();
+      deepGain.gain.value = 0.16;
+      deep.connect(deepLP).connect(deepHP).connect(deepGain).connect(this.master);
+      const mkWave = (cutoff, gainBase, gainSwing, lfoFreq, cutoffSwing, offset) => {
+        const src = this.ctx.createBufferSource();
+        src.buffer = pinkBuf; src.loop = true;
+        src.start(0, offset);
+        const lp = this.ctx.createBiquadFilter();
+        lp.type = 'lowpass'; lp.frequency.value = cutoff; lp.Q.value = 0.7;
+        const g = this.ctx.createGain();
+        g.gain.value = gainBase;
+        const lfo = this.ctx.createOscillator();
+        lfo.type = 'sine'; lfo.frequency.value = lfoFreq;
+        const lfoG = this.ctx.createGain();
+        lfoG.gain.value = gainSwing;
+        lfo.connect(lfoG).connect(g.gain);
+        lfo.start(0);
+        const lfo2 = this.ctx.createOscillator();
+        lfo2.type = 'sine'; lfo2.frequency.value = lfoFreq;
+        const lfo2G = this.ctx.createGain();
+        lfo2G.gain.value = cutoffSwing;
+        lfo2.connect(lfo2G).connect(lp.frequency);
+        lfo2.start(0);
+        src.connect(lp).connect(g).connect(this.master);
+      };
+      mkWave(1400, 0.16, 0.13, 0.055, 700, Math.random() * 6);
+      mkWave(1700, 0.11, 0.09, 0.075, 600, Math.random() * 6);
+      mkWave(1000, 0.09, 0.07, 0.042, 400, Math.random() * 6);
+      const foam = this.ctx.createBufferSource();
+      foam.buffer = pinkBuf; foam.loop = true;
+      foam.start(0, Math.random() * 6);
+      const foamBP = this.ctx.createBiquadFilter();
+      foamBP.type = 'bandpass'; foamBP.frequency.value = 2600; foamBP.Q.value = 0.55;
+      const foamHP = this.ctx.createBiquadFilter();
+      foamHP.type = 'highpass'; foamHP.frequency.value = 800;
+      const foamGain = this.ctx.createGain();
+      foamGain.gain.value = 0.06;
+      const foamLfo = this.ctx.createOscillator();
+      foamLfo.type = 'sine'; foamLfo.frequency.value = 0.065;
+      const foamLfoG = this.ctx.createGain();
+      foamLfoG.gain.value = 0.04;
+      foamLfo.connect(foamLfoG).connect(foamGain.gain);
+      foamLfo.start(0);
+      foam.connect(foamBP).connect(foamHP).connect(foamGain).connect(this.master);
+    },
+    async toggle(){
+      this.init();
+      if (!this.ctx) return false;
+      if (this.ctx.state === 'suspended') await this.ctx.resume();
+      const now = this.ctx.currentTime;
+      this.master.gain.cancelScheduledValues(now);
+      this.master.gain.setValueAtTime(this.master.gain.value, now);
+      if (this.playing){
+        this.master.gain.linearRampToValueAtTime(0, now + 1.2);
+        this.playing = false;
+      } else {
+        this.master.gain.linearRampToValueAtTime(0.55, now + 2.0);
+        this.playing = true;
+      }
+      return this.playing;
+    }
+  };
+
+  const soundBtn = document.getElementById('soundBtn');
+  soundBtn.addEventListener('click', async () => {
+    const on = await oceanAudio.toggle();
+    soundBtn.classList.toggle('on', on);
+    soundBtn.setAttribute('aria-label', on ? 'Desligar som do oceano' : 'Ligar som do oceano');
+    soundBtn.title = on ? 'Desligar som do oceano' : 'Ligar som do oceano';
+  });
+
+  // ============================================================
+  // INICIALIZAÇÃO
+  // ============================================================
+  fetchCryptoData();
+  setInterval(fetchCryptoData, MARKET_REFRESH_MS);
+  requestAnimationFrame(frame);
+
+  if (location.protocol === 'file:'){
+    console.warn('[CoinGecko] Você está abrindo via file://. Navegadores bloqueiam CORS nesse esquema.\n' +
+      '→ Sirva a página via http://localhost (ex.: python -m http.server ou Live Server do VS Code).');
+  }
+  if (!HAS_KEY){
+    console.warn('[CoinGecko] Nenhuma chave Demo configurada. Rodando em modo keyless (rate limit compartilhado por IP).\n' +
+      '→ Obtenha uma chave gratuita em https://www.coingecko.com/en/api e cole em CG_API_KEY.');
+  }
+})();
+</script>
+</body>
+</html>
